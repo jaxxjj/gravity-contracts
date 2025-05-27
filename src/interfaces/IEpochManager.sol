@@ -19,7 +19,7 @@ interface IEpochManager is IParamSubscriber {
     error EpochManager__ParameterNotFound(string param);
 
     function currentEpoch() external view returns (uint256);
-    function epochDuration() external view returns (uint256);
+    function epochIntervalMicrosecs() external view returns (uint256);
     function lastEpochTransitionTime() external view returns (uint256);
 
     /**

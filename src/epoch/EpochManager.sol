@@ -7,6 +7,7 @@ import "@src/access/Protectable.sol";
 import "@src/interfaces/IParamSubscriber.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@src/interfaces/IEpochManager.sol";
+import "@src/interfaces/ITimestamp.sol";
 /**
  * @title EpochManager
  * @dev 管理区块链的epoch转换，使用SystemV2的固定地址常量
@@ -20,7 +21,10 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
 
     // ======== 状态变量 ========
     uint256 public currentEpoch;
-    uint256 public epochDuration;
+    
+    /// @dev Epoch间隔时间（微秒）
+    uint256 public epochIntervalMicrosecs;
+    
     uint256 public lastEpochTransitionTime;
 
     modifier onlyAuthorizedCallers() {
@@ -31,11 +35,11 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
     }
 
     // ======== 构造函数 ========
-    constructor(uint256 _epochDuration) {
-        require(_epochDuration > 0, "EpochManager: epoch duration must be positive");
+    constructor(uint256 _epochIntervalMicrosecs) {
+        require(_epochIntervalMicrosecs > 0, "EpochManager: epoch interval must be positive");
         currentEpoch = 0;
-        epochDuration = _epochDuration;
-        lastEpochTransitionTime = block.timestamp;
+        epochIntervalMicrosecs = _epochIntervalMicrosecs;
+        lastEpochTransitionTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
     }
 
     /**
@@ -44,14 +48,14 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
      * @param value 参数值
      */
     function updateParam(string calldata key, bytes calldata value) external override onlyGov {
-        if (Strings.equal(key, "epochDuration")) {
+        if (Strings.equal(key, "epochIntervalMicrosecs")) {
             uint256 newValue = abi.decode(value, (uint256));
             if (newValue == 0) revert InvalidEpochDuration();
 
-            uint256 oldValue = epochDuration;
-            epochDuration = newValue;
+            uint256 oldValue = epochIntervalMicrosecs;
+            epochIntervalMicrosecs = newValue;
 
-            emit ConfigParamUpdated("epochDuration", oldValue, newValue);
+            emit ConfigParamUpdated("epochIntervalMicrosecs", oldValue, newValue);
             emit EpochDurationUpdated(oldValue, newValue);
         } else {
             revert EpochManager__ParameterNotFound(key);
@@ -66,12 +70,16 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
      */
     function triggerEpochTransition() external onlyAuthorizedCallers {
         // 检查是否已经过去足够的时间
-        if (block.timestamp < lastEpochTransitionTime + epochDuration) {
-            revert EpochDurationNotPassed(block.timestamp, lastEpochTransitionTime + epochDuration);
+        // 注意：这里需要将微秒转换为秒进行比较
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+        uint256 epoch_interval_seconds = epochIntervalMicrosecs / 1000000;
+        
+        if (currentTime < lastEpochTransitionTime + epoch_interval_seconds) {
+            revert EpochDurationNotPassed(currentTime, lastEpochTransitionTime + epoch_interval_seconds);
         }
 
         uint256 newEpoch = currentEpoch + 1;
-        uint256 transitionTime = block.timestamp;
+        uint256 transitionTime = currentTime;
 
         // 更新epoch数据
         currentEpoch = newEpoch;
@@ -89,21 +97,23 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
      * @return 如果可以进行epoch转换，则返回 true
      */
     function canTriggerEpochTransition() external view returns (bool) {
-        return block.timestamp >= lastEpochTransitionTime + epochDuration;
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+        uint256 epoch_interval_seconds = epochIntervalMicrosecs / 1000000;
+        return currentTime >= lastEpochTransitionTime + epoch_interval_seconds;
     }
 
     /**
      * @dev 获取当前epoch信息
      * @return epoch 当前epoch
      * @return lastTransitionTime 上次epoch转换时间
-     * @return duration epoch持续时间
+     * @return interval epoch持续时间（微秒）
      */
     function getCurrentEpochInfo()
         external
         view
-        returns (uint256 epoch, uint256 lastTransitionTime, uint256 duration)
+        returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval)
     {
-        return (currentEpoch, lastEpochTransitionTime, epochDuration);
+        return (currentEpoch, lastEpochTransitionTime, epochIntervalMicrosecs);
     }
 
     /**
@@ -111,11 +121,14 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
      * @return remainingTime 剩余时间（秒）
      */
     function getRemainingTime() external view returns (uint256 remainingTime) {
-        uint256 nextTransitionTime = lastEpochTransitionTime + epochDuration;
-        if (block.timestamp >= nextTransitionTime) {
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+        uint256 epoch_interval_seconds = epochIntervalMicrosecs / 1000000;
+        uint256 nextTransitionTime = lastEpochTransitionTime + epoch_interval_seconds;
+        
+        if (currentTime >= nextTransitionTime) {
             return 0;
         }
-        return nextTransitionTime - block.timestamp;
+        return nextTransitionTime - currentTime;
     }
 
 

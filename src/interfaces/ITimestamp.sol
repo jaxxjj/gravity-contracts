@@ -30,13 +30,6 @@ interface ITimestamp {
     function updateGlobalTime(address proposer, uint64 timestamp) external;
 
     /**
-     * @dev 便利函数：使用秒为单位更新时间（VM专用）
-     * @param proposer 提议者地址
-     * @param timestampSeconds 新的时间戳（秒）
-     */
-    function updateGlobalTimeSeconds(address proposer, uint64 timestampSeconds) external;
-
-    /**
      * @dev 获取当前时间（微秒）- 任何人都可以调用
      * @return 当前时间，以微秒为单位
      */

@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@src/stake/StakeCredit.sol";
 import "@src/interfaces/IValidatorManager.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@src/interfaces/ITimestamp.sol";
 /**
  * @title ValidatorManager
  * @dev validator set和管理的统一合约
@@ -110,7 +111,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 voteAddress: "", // 初始空BLS地址
                 commissionRate: 0,
                 moniker: "",
-                createdTime: block.timestamp,
+                createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 registered: true,
                 stakeCreditAddress: address(0),
                 status: ValidatorStatus.ACTIVE,
@@ -450,7 +451,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         bytes memory oldVoteAddress = validatorInfos[validator].voteAddress;
         if (oldVoteAddress.length > 0) {
             delete voteToOperator[oldVoteAddress];
-            voteExpiration[oldVoteAddress] = block.timestamp;
+            voteExpiration[oldVoteAddress] = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
         }
 
         // 设置新的映射
@@ -801,7 +802,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         bytes memory consensusPublicKey,
         bytes memory networkAddresses,
         bytes memory fullnodeAddresses,
-        bytes memory voteAddress, // 新增参数
+        bytes memory voteAddress,
         uint64 commissionRate,
         string memory moniker,
         address stakeCreditAddress,
@@ -811,10 +812,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             consensusPublicKey: consensusPublicKey,
             networkAddresses: networkAddresses,
             fullnodeAddresses: fullnodeAddresses,
-            voteAddress: voteAddress, // 新增字段
+            voteAddress: voteAddress,
             commissionRate: commissionRate,
             moniker: moniker,
-            createdTime: block.timestamp,
+            createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
             registered: true,
             stakeCreditAddress: stakeCreditAddress,
             status: status,

@@ -8,6 +8,7 @@ import "@src/interfaces/IAccessControl.sol";
 import "@src/System.sol";
 import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IStakeCredit.sol";
+import "@src/interfaces/ITimestamp.sol";
 /**
  * Aptos StakePool状态模型：
  * - active: 当前epoch中参与共识的质押
@@ -54,7 +55,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      * @dev 接收ETH作为奖励 (对应Aptos distribute_rewards)
      */
     receive() external payable onlyStakeHub {
-        uint256 index = block.timestamp / 86400; // 按天索引
+        uint256 index = ITimestamp(TIMESTAMP_ADDR).nowSeconds() / 86400; // 按天索引，使用ITimestamp
         totalPooledGRecord[index] = getTotalPooledG();
         rewardRecord[index] += msg.value;
 
@@ -108,7 +109,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      */
     function _initializeLockupAndStake(address _validator, uint256 _initialAmount) private {
         // 设置初始锁定期
-        lockedUntilSecs = block.timestamp + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
+        lockedUntilSecs = ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration(); // 使用ITimestamp
 
         // 初始化初始质押
         _bootstrapInitialHolder(_initialAmount);
@@ -344,7 +345,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
         uint256 commission = (gAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 reward = gAmount - commission;
 
-        uint256 index = block.timestamp / 86400;
+        uint256 index = ITimestamp(TIMESTAMP_ADDR).nowSeconds() / 86400; // 使用ITimestamp
         totalPooledGRecord[index] = getTotalPooledG();
         rewardRecord[index] += reward;
 
@@ -424,7 +425,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      * @dev 更新验证者锁定期
      */
     function renewLockup() external onlyStakeHub {
-        uint256 newLockupTime = block.timestamp + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
+        uint256 newLockupTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration(); // 使用ITimestamp
         lockedUntilSecs = newLockupTime;
         emit LockupRenewed(newLockupTime);
     }
@@ -482,10 +483,11 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      * @dev 获取剩余锁定时间 (对应Aptos get_remaining_lockup_secs)
      */
     function getRemainingLockupSecs() external view returns (uint256) {
-        if (lockedUntilSecs <= block.timestamp) {
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds(); // 使用ITimestamp
+        if (lockedUntilSecs <= currentTime) {
             return 0;
         }
-        return lockedUntilSecs - block.timestamp;
+        return lockedUntilSecs - currentTime;
     }
 
     function getPooledGByDelegator(address delegator) public view returns (uint256) {
@@ -532,7 +534,8 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      * @dev 检查和处理锁定期状态
      */
     function _checkAndProcessLockup() internal {
-        if (block.timestamp >= lockedUntilSecs && pendingInactive > 0) {
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds(); // 使用ITimestamp
+        if (currentTime >= lockedUntilSecs && pendingInactive > 0) {
             inactive += pendingInactive;
             pendingInactive = 0;
             // 不自动续期，由外部调用renewLockup
@@ -563,6 +566,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
             bool _isLocked
         )
     {
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds(); // 使用ITimestamp
         return (
             active,
             inactive,
@@ -571,7 +575,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
             getTotalPooledG(),
             address(this).balance,
             totalSupply(),
-            block.timestamp < lockedUntilSecs
+            currentTime < lockedUntilSecs
         );
     }
 }

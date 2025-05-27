@@ -46,13 +46,6 @@ contract Timestamp is System, ITimestamp {
     }
 
     /**
-     * @dev 便利函数：使用秒为单位更新时间（VM专用）
-     */
-    function updateGlobalTimeSeconds(address proposer, uint64 timestampSeconds) external onlyGov {
-        updateGlobalTime(proposer, timestampSeconds * MICRO_CONVERSION_FACTOR);
-    }
-
-    /**
      * @dev 获取当前时间（微秒）- 任何人都可以调用
      * 对应Aptos的now_microseconds函数
      */
