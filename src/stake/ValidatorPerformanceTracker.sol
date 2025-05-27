@@ -124,7 +124,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         _finalizeCurrentEpochPerformance(currentEpoch);
 
         // 从ValidatorManager获取新的验证者集合（对应Aptos中的validator set更新）
-        _updateValidatorSetFromSystem();
+        _updateActiveValidatorSetFromSystem();
 
         // 重置所有验证者的性能统计（对应Aptos中on_new_epoch的重置逻辑）
         _resetPerformanceStatistics();
@@ -137,8 +137,8 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @param newValidators 新的验证者列表
      * @param epoch 当前epoch
      */
-    function updateValidatorSet(address[] calldata newValidators, uint256 epoch) external onlySystemCaller {
-        _updateValidatorSet(newValidators, epoch);
+    function updateActiveValidatorSet(address[] calldata newValidators, uint256 epoch) external onlySystemCaller {
+        _updateActiveValidatorSet(newValidators, epoch);
     }
 
     /**
@@ -318,7 +318,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @dev 初始化验证者集合
      */
     function _initializeValidatorSet(address[] calldata validators) internal {
-        if (validators.length == 0) revert EmptyValidatorSet();
+        if (validators.length == 0) revert EmptyActiveValidatorSet();
 
         // 检查重复验证者
         for (uint256 i = 0; i < validators.length; i++) {
@@ -329,7 +329,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
             }
         }
 
-        _updateValidatorSet(validators, 0);
+        _updateActiveValidatorSet(validators, 0);
     }
 
     /**
@@ -365,19 +365,19 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     /**
      * @dev 从ValidatorManager获取验证者集合
      */
-    function _updateValidatorSetFromSystem() internal {
+    function _updateActiveValidatorSetFromSystem() internal {
         (address[] memory validators, uint64[] memory votingPowers) =
             IValidatorManager(VALIDATOR_MANAGER_ADDR).getActiveValidators();
         if (validators.length > 0) {
-            _updateValidatorSet(validators, IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
+            _updateActiveValidatorSet(validators, IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
         }
     }
 
     /**
-     * @dev 更新验证者集合和性能数据结构
+     * @dev 更新活跃验证者集合和性能数据结构
      */
-    function _updateValidatorSet(address[] memory validators, uint256 epoch) internal {
-        if (validators.length == 0) revert EmptyValidatorSet();
+    function _updateActiveValidatorSet(address[] memory validators, uint256 epoch) internal {
+        if (validators.length == 0) revert EmptyActiveValidatorSet();
 
         // 清除旧的验证者映射
         for (uint256 i = 0; i < activeValidators.length; i++) {
@@ -405,6 +405,6 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
             currentValidators.push(IndividualValidatorPerformance({successfulProposals: 0, failedProposals: 0}));
         }
 
-        emit ValidatorSetUpdated(epoch, validators, block.timestamp);
+        emit ActiveValidatorSetUpdated(epoch, validators);
     }
 }

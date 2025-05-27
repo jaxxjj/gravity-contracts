@@ -31,8 +31,8 @@ interface IValidatorPerformanceTracker {
         uint256 indexed epoch, uint256 totalValidators, uint256 totalSuccessfulProposals, uint256 totalFailedProposals
     );
 
-    /// 验证者集合更新事件
-    event ValidatorSetUpdated(uint256 indexed epoch, address[] validators, uint256 timestamp);
+    /// 活跃验证者集合更新事件
+    event ActiveValidatorSetUpdated(uint256 indexed epoch, address[] validators);
 
     /// 验证者性能重置事件
     event PerformanceReset(uint256 indexed newEpoch, uint256 validatorCount);
@@ -42,7 +42,7 @@ interface IValidatorPerformanceTracker {
     error InvalidValidatorIndex(uint256 index, uint256 maxIndex);
     error ValidatorNotFound(address validator);
     error InvalidEpochNumber(uint256 expected, uint256 provided);
-    error EmptyValidatorSet();
+    error EmptyActiveValidatorSet();
     error DuplicateValidator(address validator);
 
     /**
@@ -64,11 +64,11 @@ interface IValidatorPerformanceTracker {
     function onNewEpoch() external;
 
     /**
-     * @dev 手动更新验证者集合
-     * @param newValidators 新的验证者列表
+     * @dev 手动更新活跃验证者集合
+     * @param newValidators 新的活跃验证者列表
      * @param epoch 当前epoch
      */
-    function updateValidatorSet(address[] calldata newValidators, uint256 epoch) external;
+    function updateActiveValidatorSet(address[] calldata newValidators, uint256 epoch) external;
 
     /**
      * @dev 获取当前epoch的提案统计
