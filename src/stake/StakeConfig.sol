@@ -5,6 +5,7 @@ import "@src/System.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/interfaces/IParamSubscriber.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 
 /**
  * @title StakeConfig
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
  * - get_reward_rate: 获取奖励率
  * - calculate_rewards_amount: 计算奖励数量
  */
-contract StakeConfig is System, IStakeConfig, IParamSubscriber {
+contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     // ======== 常量定义 (对应Aptos常量) ========
 
     // 验证者状态常量 (对应Aptos stake.move)
@@ -71,9 +72,17 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber {
     uint256 public maxCommissionChangeRate; // 最大佣金变更率
 
     /**
-     * @dev 构造函数，设置默认配置值 (对应Aptos初始化参数)
+     * @dev 禁用构造函数
+     * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @dev 初始化函数，替代构造函数用于代理模式，设置默认配置值 (对应Aptos初始化参数)
+     */
+    function initialize() public initializer onlySystemCaller {
         // 质押参数 (对应Aptos StakingConfig默认值)
         minValidatorStake = 1000 ether; // 对应Aptos minimum_stake
         maximumStake = 1000000 ether; // 对应Aptos maximum_stake

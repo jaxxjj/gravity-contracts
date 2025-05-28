@@ -23,6 +23,14 @@ contract Block is System {
     );
 
     /**
+     * @dev genesis的时候初始化合约 只能由system调用
+     */
+    function init() external onlyNotInit onlySystemCaller {
+        emitGenesisBlockEvent();
+        alreadyInit = true;
+    }
+
+    /**
      * @dev 区块开始时调用，执行必要的系统逻辑
      * 对应Aptos block_prologue_common的流程
      * @param proposer 当前块的提议者地址，如果为SYSTEM_CALLER则表示VM保留地址
@@ -76,7 +84,7 @@ contract Block is System {
      * @dev 发射创世区块事件。这个函数将在创世时直接调用，以生成第一个重配置事件。
      * 对应Aptos emit_genesis_block_event函数
      */
-    function emitGenesisBlockEvent() external onlySystemCaller {
+    function emitGenesisBlockEvent() private {
         address genesisId = address(0);
         uint64[] memory emptyFailedProposerIndices = new uint64[](0);
 

@@ -83,6 +83,15 @@ contract System {
         if (msg.sender != BLOCK_ADDR) revert OnlySystemContract(BLOCK_ADDR);
         _;
     }
+    modifier onlyNotInit() {
+        require(!alreadyInit, "the contract already init");
+        _;
+    }
+
+    modifier onlyInit() {
+        require(alreadyInit, "the contract not init yet");
+        _;
+    }
 
     modifier onlyGov() {
         if (msg.sender != GOV_HUB_ADDR) revert OnlySystemContract(GOV_HUB_ADDR);

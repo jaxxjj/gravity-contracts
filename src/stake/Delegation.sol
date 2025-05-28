@@ -85,7 +85,6 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
 
         emit Delegated(validator, delegator, shares, bnbAmount);
 
-        // TODO: 处理投票权委托
         IGovToken(GOV_TOKEN_ADDR).sync(stakeCreditAddress, delegator);
         if (delegateVotePower) {
             IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, validator);

@@ -39,6 +39,8 @@ interface IStakeConfig {
     error StakeConfig__WrongInitContext();
     error StakeConfig__InvalidParameter();
 
+    function initialize() external;
+
     function getRequiredStake() external view returns (uint256 minimum, uint256 maximum);
     function getRewardRate() external view returns (uint256 rate, uint256 denominator);
 
