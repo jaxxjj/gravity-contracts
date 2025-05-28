@@ -62,7 +62,6 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber {
     // 对应Aptos voting_power_increase_limit
     uint256 public votingPowerIncreaseLimit; // 每个纪元最大投票权增长百分比
 
-
     // 对应Aptos rewards_rate, rewards_rate_denominator
     uint256 public rewardsRate; // 基础奖励率
     uint256 public rewardsRateDenominator; // 奖励率分母
@@ -210,7 +209,6 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber {
 
         emit ParamChange(key, value);
     }
-
 
     /**
      * @dev 获取质押要求 (对应Aptos get_required_stake)

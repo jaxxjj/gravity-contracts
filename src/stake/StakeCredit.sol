@@ -109,7 +109,8 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      */
     function _initializeLockupAndStake(address _validator, uint256 _initialAmount) private {
         // 设置初始锁定期
-        lockedUntilSecs = ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration(); // 使用ITimestamp
+        lockedUntilSecs =
+            ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration(); // 使用ITimestamp
 
         // 初始化初始质押
         _bootstrapInitialHolder(_initialAmount);
@@ -425,7 +426,8 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      * @dev 更新验证者锁定期
      */
     function renewLockup() external onlyStakeHub {
-        uint256 newLockupTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration(); // 使用ITimestamp
+        uint256 newLockupTime =
+            ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration(); // 使用ITimestamp
         lockedUntilSecs = newLockupTime;
         emit LockupRenewed(newLockupTime);
     }
@@ -493,7 +495,6 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
     function getPooledGByDelegator(address delegator) public view returns (uint256) {
         return getPooledGByShares(balanceOf(delegator));
     }
-
 
     function _isCurrentEpochValidator() internal view returns (bool) {
         // 基于自身状态判断

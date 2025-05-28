@@ -7,6 +7,7 @@ import "@openzeppelin-upgrades/token/ERC20/extensions/ERC20PermitUpgradeable.sol
 import "@openzeppelin-upgrades/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 
 import "@src/System.sol";
+import "@src/interfaces/IGovToken.sol";
 import "@src/interfaces/IStakeCredit.sol";
 
 contract GovToken is
@@ -15,19 +16,12 @@ contract GovToken is
     ERC20Upgradeable,
     ERC20BurnableUpgradeable,
     ERC20PermitUpgradeable,
-    ERC20VotesUpgradeable
+    ERC20VotesUpgradeable,
+    IGovToken
 {
     /*----------------- constants -----------------*/
     string private constant NAME = "BSC Governance Token";
     string private constant SYMBOL = "govBNB";
-
-    /*----------------- errors -----------------*/
-    // @notice signature: 0x8cd22d19
-    error TransferNotAllowed();
-    // @notice signature: 0x20287471
-    error ApproveNotAllowed();
-    // @notice signature: 0xe5d87767
-    error BurnNotAllowed();
 
     /*----------------- storage -----------------*/
     // validator StakeCredit contract => user => amount
@@ -72,13 +66,21 @@ contract GovToken is
         _delegate(delegator, delegatee);
     }
 
-    function burn(
-        uint256
-    ) public pure override {
+    function totalSupply() public view override(ERC20Upgradeable, IGovToken) returns (uint256) {
+        return super.totalSupply();
+    }
+    /**
+     * @dev Burn tokens (disabled - will always revert)
+     */
+
+    function burn(uint256) public pure override(ERC20BurnableUpgradeable, IGovToken) {
         revert BurnNotAllowed();
     }
 
-    function burnFrom(address, uint256) public pure override {
+    /**
+     * @dev Burn tokens from account (disabled - will always revert)
+     */
+    function burnFrom(address, uint256) public pure override(ERC20BurnableUpgradeable, IGovToken) {
         revert BurnNotAllowed();
     }
 
@@ -102,12 +104,15 @@ contract GovToken is
      * @dev Override _update to prevent transfers while allowing mint/burn
      * In v5.x, _update is the core function that handles mint, burn, and transfer
      */
-    function _update(address from, address to, uint256 value) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
         // Allow minting (from == address(0)) and burning (to == address(0))
         if (from != address(0) && to != address(0)) {
             revert TransferNotAllowed();
         }
-        
+
         // Call the parent _update function which handles the voting logic
         ERC20VotesUpgradeable._update(from, to, value);
     }
@@ -115,13 +120,6 @@ contract GovToken is
     /**
      * @dev Override _approve to prevent any approvals
      * Need to override both variants in v5.x
-     */
-    function _approve(address owner, address spender, uint256 value) internal pure override {
-        revert ApproveNotAllowed();
-    }
-
-    /**
-     * @dev Override the new _approve variant with emitEvent parameter
      */
     function _approve(address owner, address spender, uint256 value, bool emitEvent) internal pure override {
         revert ApproveNotAllowed();
@@ -131,7 +129,13 @@ contract GovToken is
      * @dev Resolve nonces function conflict between ERC20Permit and ERC20Votes
      * Use ERC20Permit's implementation for permit functionality
      */
-    function nonces(address owner) public view virtual override(ERC20PermitUpgradeable, NoncesUpgradeable) returns (uint256) {
+    function nonces(address owner)
+        public
+        view
+        virtual
+        override(ERC20PermitUpgradeable, NoncesUpgradeable)
+        returns (uint256)
+    {
         return super.nonces(owner);
     }
 }

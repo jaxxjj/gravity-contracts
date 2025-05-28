@@ -36,7 +36,6 @@ contract AccessControl is Ownable, System, IAccessControl {
     // 授权的模块合约（只有这些合约可以修改权限映射）
     mapping(address => bool) public authorizedModules;
 
-
     modifier validatorExists(address validator) {
         if (!_validatorRoles[validator].exists) {
             revert AccessControl__ValidatorNotRegistered(validator);
@@ -187,7 +186,6 @@ contract AccessControl is Ownable, System, IAccessControl {
 
         emit CommissionBeneficiaryUpdated(validator, oldBeneficiary, newBeneficiary);
     }
-
 
     /**
      * @dev 检查是否为验证者所有者

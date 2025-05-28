@@ -57,7 +57,6 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         _;
     }
 
-
     /**
      * @dev 向验证者质押 (对应Aptos add_stake)
      * @param validator 验证者地址
@@ -159,7 +158,6 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         validatorExists(srcValidator)
         validatorExists(dstValidator)
         nonReentrant
-        enableReceivingFund
     {
         // 基本检查
         if (shares == 0) revert Delegation__ZeroShares();

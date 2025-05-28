@@ -4,9 +4,7 @@ pragma solidity 0.8.30;
 contract System {
     bool public alreadyInit;
 
-    uint8 internal _receiveFundStatus;
-    uint8 internal constant _DISABLE = 0;
-    uint8 internal constant _ENABLE = 1;
+    uint8 internal constant CODE_OK = 0;
     /*----------------- constants -----------------*/
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
@@ -61,12 +59,6 @@ contract System {
         _;
     }
 
-    modifier enableReceivingFund() {
-        _receiveFundStatus = _ENABLE;
-        _;
-        _receiveFundStatus = _DISABLE;
-    }
-
     modifier onlyCoinbase() {
         if (msg.sender != block.coinbase) revert OnlyCoinbase();
         _;
@@ -94,6 +86,11 @@ contract System {
 
     modifier onlyGovernor() {
         if (msg.sender != GOVERNOR_ADDR) revert OnlySystemContract(GOVERNOR_ADDR);
+        _;
+    }
+
+    modifier onlyGovernorTimelock() {
+        require(msg.sender == TIMELOCK_ADDR, "the msg sender must be governor timelock contract");
         _;
     }
 

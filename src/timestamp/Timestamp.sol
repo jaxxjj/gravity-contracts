@@ -7,8 +7,8 @@ import "@src/interfaces/ITimestamp.sol";
  * @title Timestamp
  * @dev 复刻Aptos timestamp.move模块，移除了timeStarted相关功能
  */
-contract Timestamp is System, ITimestamp {
 
+contract Timestamp is System, ITimestamp {
     /// 秒和微秒之间的转换因子
     uint64 public constant MICRO_CONVERSION_FACTOR = 1000000;
 
@@ -69,11 +69,7 @@ contract Timestamp is System, ITimestamp {
         view
         returns (uint64 currentMicroseconds, uint64 currentSeconds, uint256 blockTimestamp)
     {
-        return (
-            microseconds,
-            microseconds / MICRO_CONVERSION_FACTOR,
-            block.timestamp
-        );
+        return (microseconds, microseconds / MICRO_CONVERSION_FACTOR, block.timestamp);
     }
 
     /**

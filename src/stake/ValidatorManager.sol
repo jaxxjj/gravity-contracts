@@ -25,7 +25,6 @@ import "@src/interfaces/ITimestamp.sol";
 contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorManager {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-
     /// BLS公钥长度
     uint256 private constant BLS_PUBKEY_LENGTH = 48;
     /// BLS签名长度
@@ -462,7 +461,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         emit ValidatorInfoUpdated(validator, "voteAddress");
     }
-
 
     /**
      * @dev 激活pending_active中的验证者

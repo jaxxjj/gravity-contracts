@@ -21,10 +21,10 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
 
     // ======== 状态变量 ========
     uint256 public currentEpoch;
-    
+
     /// @dev Epoch间隔时间（微秒）
     uint256 public epochIntervalMicrosecs;
-    
+
     uint256 public lastEpochTransitionTime;
 
     modifier onlyAuthorizedCallers() {
@@ -73,7 +73,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
         // 注意：这里需要将微秒转换为秒进行比较
         uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
         uint256 epoch_interval_seconds = epochIntervalMicrosecs / 1000000;
-        
+
         if (currentTime < lastEpochTransitionTime + epoch_interval_seconds) {
             revert EpochDurationNotPassed(currentTime, lastEpochTransitionTime + epoch_interval_seconds);
         }
@@ -124,13 +124,12 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
         uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
         uint256 epoch_interval_seconds = epochIntervalMicrosecs / 1000000;
         uint256 nextTransitionTime = lastEpochTransitionTime + epoch_interval_seconds;
-        
+
         if (currentTime >= nextTransitionTime) {
             return 0;
         }
         return nextTransitionTime - currentTime;
     }
-
 
     /**
      * @dev 通知所有系统合约epoch切换
@@ -142,7 +141,6 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
         _safeNotifyModule(STAKE_HUB_ADDR, newEpoch, transitionTime);
 
         _safeNotifyModule(GOVERNOR_ADDR, newEpoch, transitionTime);
-
     }
 
     /**

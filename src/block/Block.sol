@@ -35,7 +35,7 @@ contract Block is System {
         // 0. 更新全局时间戳
         // 将传入的秒级时间戳转换为微秒级时间戳
         address proposerAddr;
-        
+
         // 如果proposerIndex是无效值（在这里我们假设是uint64的最大值），使用SYSTEM_CALLER作为提议者
         // 对应Move代码中的 proposer == @vm_reserved
         if (proposerIndex == type(uint64).max) {
@@ -45,7 +45,7 @@ contract Block is System {
             // 暂时使用coinbase作为提议者地址
             proposerAddr = block.coinbase;
         }
-        
+
         // 将时间戳转换为微秒并调用时间戳合约更新全局时间
         uint64 timestampMicros = uint64(timestamp * ITimestamp(TIMESTAMP_ADDR).MICRO_CONVERSION_FACTOR());
         ITimestamp(TIMESTAMP_ADDR).updateGlobalTime(proposerAddr, timestampMicros);
@@ -70,21 +70,21 @@ contract Block is System {
     function emitGenesisBlockEvent() external onlySystemCaller {
         address genesisId = address(0);
         uint64[] memory emptyFailedProposerIndices = new uint64[](0);
-        
+
         emit NewBlockEvent(
-            genesisId,       // hash: genesis_id
-            0,               // epoch: 0
-            0,               // round: 0 
-            0,               // height: 0
-            bytes(""),       // previous_block_votes_bitvec: empty
-            SYSTEM_CALLER,   // proposer: @vm_reserved (对应SYSTEM_CALLER)
+            genesisId, // hash: genesis_id
+            0, // epoch: 0
+            0, // round: 0
+            0, // height: 0
+            bytes(""), // previous_block_votes_bitvec: empty
+            SYSTEM_CALLER, // proposer: @vm_reserved (对应SYSTEM_CALLER)
             emptyFailedProposerIndices, // failed_proposer_indices: empty
-            0                // time_microseconds: 0
+            0 // time_microseconds: 0
         );
 
         // 将全局时间戳初始化为0
         ITimestamp(TIMESTAMP_ADDR).updateGlobalTime(SYSTEM_CALLER, 0);
-        
+
         // 触发初始epoch设置（可选，取决于系统设计）
         // 如果需要在创世时设置初始epoch，可以在这里添加相关逻辑
     }

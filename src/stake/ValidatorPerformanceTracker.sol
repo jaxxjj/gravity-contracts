@@ -6,9 +6,7 @@ import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IValidatorPerformanceTracker.sol";
 
-
 contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
-
     /// 当前性能数据 - 将动态数组单独存储
     IndividualValidatorPerformance[] private currentValidators;
 

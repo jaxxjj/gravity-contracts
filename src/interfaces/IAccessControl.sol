@@ -7,7 +7,6 @@ pragma solidity ^0.8.17;
  * 角色结构：owner, operator（合并了agent功能）, delegatedVoter, commissionBeneficiary
  */
 interface IAccessControl {
-
     struct ValidatorRoles {
         address owner; // 质押池所有者，拥有最高权限
         address operator; // 验证者操作员，负责日常操作）
@@ -22,7 +21,7 @@ interface IAccessControl {
     error AccessControl__AddressAlreadyInUse(address addr, address currentValidator);
     error AccessControl__OnlyAuthorizedModule();
     error AccessControl__NotOwner(address caller, address validator);
- 
+
     function registerValidatorRoles(
         address validator,
         address owner,
@@ -35,7 +34,6 @@ interface IAccessControl {
     function updateOperator(address validator, address newOperator) external;
     function updateDelegatedVoter(address validator, address newVoter) external;
     function updateCommissionBeneficiary(address validator, address newBeneficiary) external;
-
 
     function isOwner(address validator, address account) external view returns (bool);
     function isOperator(address validator, address account) external view returns (bool);
@@ -55,8 +53,6 @@ interface IAccessControl {
 
     function operatorToValidator(address operator) external view returns (address);
     function voterToValidator(address voter) external view returns (address);
-
-
 
     event ValidatorRoleRegistered(address indexed validator, address indexed owner, address indexed operator);
     event ValidatorRoleRemoved(address indexed validator);

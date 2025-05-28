@@ -54,7 +54,6 @@ interface IValidatorManager {
         address initialVoter;
     }
 
-
     /// 验证者注册相关事件
     event ValidatorRegistered(
         address indexed validator,
@@ -85,7 +84,6 @@ interface IValidatorManager {
 
     event NewEpoch(uint64 indexed epoch, uint256 activeValidators, uint128 totalVotingPower);
 
-
     // 注册相关错误
     error ValidatorAlreadyExists(address validator);
     error ValidatorNotExists(address validator);
@@ -110,7 +108,6 @@ interface IValidatorManager {
     error VotingPowerIncreaseExceedsLimit();
     error ValidatorSetChangeDisabled();
 
-
     /**
      * @dev 初始化验证者集合
      */
@@ -122,7 +119,6 @@ interface IValidatorManager {
      * @dev 注册新验证者
      */
     function registerValidator(ValidatorRegistrationParams calldata params) external payable;
-
 
     /**
      * @dev 加入验证者集合
@@ -232,5 +228,4 @@ interface IValidatorManager {
      * @dev 获取验证者的投票地址
      */
     function getValidatorVoteAddress(address validator) external view returns (bytes memory);
-
 }

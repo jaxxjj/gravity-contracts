@@ -7,7 +7,6 @@ pragma solidity 0.8.30;
  * 对应Aptos中的ValidatorPerformance功能
  */
 interface IValidatorPerformanceTracker {
-
     /// 对应Aptos的IndividualValidatorPerformance
     struct IndividualValidatorPerformance {
         uint64 successfulProposals; // 成功提案数
@@ -36,7 +35,6 @@ interface IValidatorPerformanceTracker {
 
     /// 验证者性能重置事件
     event PerformanceReset(uint256 indexed newEpoch, uint256 validatorCount);
-
 
     error AlreadyInitialized();
     error InvalidValidatorIndex(uint256 index, uint256 maxIndex);
