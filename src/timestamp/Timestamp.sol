@@ -21,7 +21,7 @@ contract Timestamp is System, ITimestamp {
      * @param proposer 提议者地址
      * @param timestamp 新的时间戳（微秒）
      */
-    function updateGlobalTime(address proposer, uint64 timestamp) public onlySystemCaller {
+    function updateGlobalTime(address proposer, uint64 timestamp) public onlyBlock {
         // 获取state里面存储的当前时间
         uint64 currentTime = microseconds;
 

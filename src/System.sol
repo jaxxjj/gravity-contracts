@@ -79,6 +79,11 @@ contract System {
         _;
     }
 
+    modifier onlyBlock() {
+        if (msg.sender != BLOCK_ADDR) revert OnlySystemContract(BLOCK_ADDR);
+        _;
+    }
+
     modifier onlyGov() {
         if (msg.sender != GOV_HUB_ADDR) revert OnlySystemContract(GOV_HUB_ADDR);
         _;

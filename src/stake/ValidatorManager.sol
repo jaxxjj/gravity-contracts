@@ -770,7 +770,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 检查验证者是否为当前活跃验证者
      */
-    function isCurrentEpochValidator(address validator) external view override returns (bool) {
+    function isCurrentEpochValidator(address validator) public view override returns (bool) {
         return validatorInfos[validator].status == ValidatorStatus.ACTIVE;
     }
 
@@ -821,5 +821,17 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             validatorIndex: 0,
             lastEpochActive: 0
         });
+    }
+
+    /**
+     * @dev 获取验证者在当前活跃验证者集合中的索引
+     * @param validator 验证者地址
+     * @return 验证者索引，如果不是活跃验证者则可能返回0或revert
+     */
+    function getValidatorIndex(address validator) external view returns (uint64) {
+        if (!isCurrentEpochValidator(validator)) {
+            revert ValidatorNotActive(validator);
+        }
+        return uint64(activeValidatorIndex[validator]);
     }
 }

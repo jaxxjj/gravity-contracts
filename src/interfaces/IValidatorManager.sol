@@ -228,4 +228,11 @@ interface IValidatorManager {
      * @dev 获取验证者的投票地址
      */
     function getValidatorVoteAddress(address validator) external view returns (bytes memory);
+
+    /**
+     * @dev 获取验证者在当前活跃验证者集合中的索引
+     * @param validator 验证者地址
+     * @return 验证者索引，如果不是活跃验证者则可能返回0或revert
+     */
+    function getValidatorIndex(address validator) external view returns (uint64);
 }
