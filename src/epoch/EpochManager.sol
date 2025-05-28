@@ -8,13 +8,14 @@ import "@src/interfaces/IParamSubscriber.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/ITimestamp.sol";
+import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 /**
  * @title EpochManager
  * @dev 管理区块链的epoch转换，使用SystemV2的固定地址常量
  * 不需要注册模块，直接调用已知的系统合约地址
  */
 
-contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
+contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, Initializable {
     using Strings for string;
 
     // Performance Tracker合约地址（假设部署在0xf0）
@@ -34,11 +35,21 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager {
         _;
     }
 
-    // ======== 构造函数 ========
-    constructor(uint256 _epochIntervalMicrosecs) {
-        require(_epochIntervalMicrosecs > 0, "EpochManager: epoch interval must be positive");
+    /**
+     * @dev 禁用构造函数中的初始化器
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @dev 初始化函数，替代构造函数用于代理模式
+     */
+    function initialize() external initializer {
+
         currentEpoch = 0;
-        epochIntervalMicrosecs = _epochIntervalMicrosecs;
+        epochIntervalMicrosecs = 2 hours * MICRO_CONVERSION_FACTOR;
         lastEpochTransitionTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
     }
 

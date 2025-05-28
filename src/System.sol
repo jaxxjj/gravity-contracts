@@ -5,6 +5,7 @@ contract System {
     bool public alreadyInit;
 
     uint8 internal constant CODE_OK = 0;
+    uint64 public constant MICRO_CONVERSION_FACTOR = 1000000;
     /*----------------- constants -----------------*/
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 

@@ -22,6 +22,8 @@ interface IEpochManager is IParamSubscriber {
     function epochIntervalMicrosecs() external view returns (uint256);
     function lastEpochTransitionTime() external view returns (uint256);
 
+    function initialize() external;
+
     /**
      * @dev 处理纪元转换，通知所有系统模块
      */

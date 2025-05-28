@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin-upgrades/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin-upgrades/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/interfaces/IAccessControl.sol";
 import "@src/System.sol";
@@ -22,10 +23,14 @@ import "@src/interfaces/ITimestamp.sol";
  * - 四状态余额 = 直接对应Aptos四个Coin<AptosCoin>字段
  */
 
-contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IStakeCredit {
+contract StakeCredit is 
+    Initializable,
+    ERC20Upgradeable,
+    ReentrancyGuardUpgradeable,
+    System,
+    IStakeCredit
+{
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100% (对应Aptos COMMISSION_RATE_BASE)
-
-    bool private _initialized;
 
     // ======== Aptos StakePool四状态模型 ========
     /// 对应Aptos StakePool.active
@@ -51,6 +56,10 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
     mapping(uint256 => uint256) public rewardRecord;
     mapping(uint256 => uint256) public totalPooledGRecord;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @dev 接收ETH作为奖励 (对应Aptos distribute_rewards)
      */
@@ -68,7 +77,7 @@ contract StakeCredit is ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IS
      * @param _validator 验证者地址
      * @param _moniker 验证者名称
      */
-    function initialize(address _validator, string memory _moniker) external payable override {
+    function initialize(address _validator, string memory _moniker) external payable override initializer {
         // 初始化ERC20基础部分
         _initializeERC20(_moniker);
 
