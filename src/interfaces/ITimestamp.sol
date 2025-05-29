@@ -16,7 +16,6 @@ interface ITimestamp {
     /// Events
     event GlobalTimeUpdated(address indexed proposer, uint64 oldTimestamp, uint64 newTimestamp, bool isNilBlock);
 
-
     /// @dev 当前Unix时间（微秒）
     function microseconds() external view returns (uint64);
 

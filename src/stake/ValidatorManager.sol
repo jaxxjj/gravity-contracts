@@ -61,7 +61,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     event RewardsDistributed(address indexed validator, uint256 amount);
     event FinalityRewardDistributed(address indexed validator, uint256 amount);
     event ValidatorDeposit(address indexed validator, uint256 amount);
-    
+
     // 用于跟踪验证者累积奖励的映射
     uint256 public totalIncoming;
 
@@ -314,7 +314,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // 1. 分发基于性能的奖励 (从StakeReward合并)
         _distributeRewards();
-        
+
         // 2. 分发累积的区块奖励
         _distributeValidatorRewards();
 
@@ -856,10 +856,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function deposit() external payable onlySystemCaller {
         // 直接累积到总奖励池，不分配给特定验证者
         totalIncoming += msg.value;
-        
+
         emit RewardsCollected(msg.value, totalIncoming);
     }
-    
+
     /**
      * @dev 分发基于性能的奖励给所有活跃验证者
      * 集成自 StakeReward.distributeRewards()
@@ -867,28 +867,28 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function distributeRewards() public onlyStakeHub nonReentrant whenNotPaused {
         _distributeRewards();
     }
-    
+
     /**
      * @dev 内部方法，实现奖励分发逻辑
      * 集成自 StakeReward._distributeRewards()
      */
     function _distributeRewards() internal {
         address[] memory validators = activeValidators.values();
-        
+
         for (uint256 i = 0; i < validators.length; i++) {
             address validator = validators[i];
             address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
-            
+
             if (stakeCreditAddress != address(0)) {
                 uint256 stakeAmount = _getValidatorCurrentEpochVotingPower(validator);
-                
+
                 // 直接使用接口调用，不创建局部变量
                 (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
                     IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
-                
+
                 if (exists) {
                     uint64 totalProposals = successfulProposals + failedProposals;
-                    
+
                     // 计算奖励（如果没有提案，使用默认值）
                     uint256 rewardAmount;
                     if (totalProposals > 0) {
@@ -899,11 +899,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                         // 如果没有提案记录，使用100%成功率
                         rewardAmount = IStakeConfig(STAKE_CONFIG_ADDR).calculateRewardsAmount(stakeAmount, 1, 1);
                     }
-                    
+
                     if (rewardAmount > 0) {
                         // 获取验证者的佣金率
                         uint64 commissionRate = validatorInfos[validator].commissionRate;
-                        
+
                         // 发送奖励到StakeCredit合约
                         StakeCredit(payable(stakeCreditAddress)).distributeReward{value: rewardAmount}(commissionRate);
                         emit RewardsDistributed(validator, rewardAmount);
@@ -912,7 +912,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             }
         }
     }
-    
+
     /**
      * @dev 获取验证者的当前epoch投票权
      * 集成自 StakeReward._getValidatorCurrentEpochVotingPower()
@@ -924,105 +924,106 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
         return StakeCredit(payable(stakeCreditAddress)).getCurrentEpochVotingPower();
     }
-    
+
     /**
      * @dev 分发累积的区块奖励
      */
     function _distributeValidatorRewards() internal {
         if (totalIncoming == 0) return;
-        
+
         address[] memory validators = activeValidators.values();
         uint256 totalWeight = 0;
         uint256[] memory weights = new uint256[](validators.length);
-        
+
         // 第一步：计算每个验证者的权重（基于性能）
         for (uint256 i = 0; i < validators.length; i++) {
             address validator = validators[i];
-            
+
             // 获取验证者性能数据
             (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
                 IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
-            
+
             if (exists && (successfulProposals + failedProposals > 0)) {
                 // 计算性能权重（可根据需要调整公式）
                 uint256 performance = successfulProposals * 100 / (successfulProposals + failedProposals);
                 uint256 stake = _getValidatorCurrentEpochVotingPower(validator);
-                
+
                 // 权重 = 性能 * 质押量（可以根据需要调整）
                 weights[i] = performance * stake;
                 totalWeight += weights[i];
             }
         }
-        
+
         // 第二步：根据权重分配奖励
         if (totalWeight > 0) {
             for (uint256 i = 0; i < validators.length; i++) {
                 if (weights[i] > 0) {
                     address validator = validators[i];
                     address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
-                    
+
                     if (stakeCreditAddress != address(0)) {
                         // 计算该验证者应得奖励
                         uint256 reward = totalIncoming * weights[i] / totalWeight;
-                        
+
                         // 获取佣金率
                         uint64 commissionRate = validatorInfos[validator].commissionRate;
-                        
+
                         // 发送奖励
                         StakeCredit(payable(stakeCreditAddress)).distributeReward{value: reward}(commissionRate);
-                        
+
                         emit RewardsDistributed(validator, reward);
                     }
                 }
             }
         }
-        
+
         // 重置奖励池
         totalIncoming = 0;
     }
-    
+
     /**
      * @dev 分发最终性奖励给验证者
      * 集成自 StakeReward.distributeFinalityReward()
      */
-    function distributeFinalityReward(
-        address[] calldata validators, 
-        uint256[] calldata weights
-    ) external onlyCoinbase nonReentrant whenNotPaused {
+    function distributeFinalityReward(address[] calldata validators, uint256[] calldata weights)
+        external
+        onlyCoinbase
+        nonReentrant
+        whenNotPaused
+    {
         // 1. 从系统奖励池获取奖励
         uint256 totalReward = _getFinalityReward();
         if (totalReward == 0) return;
-        
+
         // 2. 计算总权重
         uint256 totalWeight = 0;
         for (uint256 i = 0; i < weights.length; i++) {
             totalWeight += weights[i];
         }
         if (totalWeight == 0) return;
-        
+
         // 3. 按权重分配奖励
         for (uint256 i = 0; i < validators.length; i++) {
             address validator = validators[i];
-            
+
             // 计算该验证者应得奖励
             uint256 validatorReward = totalReward * weights[i] / totalWeight;
-            
+
             // 获取验证者 StakeCredit 地址
             address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
-                    
+
             if (stakeCreditAddress != address(0) && validatorReward > 0) {
                 // 获取佣金率
                 uint64 commissionRate = validatorInfos[validator].commissionRate;
-                        
+
                 // 发送奖励
-                StakeCredit(payable(stakeCreditAddress))
-                    .distributeReward{value: validatorReward}(commissionRate);
-                        
+                StakeCredit(payable(stakeCreditAddress)).distributeReward{value: validatorReward}(commissionRate);
+
                 emit FinalityRewardDistributed(validator, validatorReward);
             }
         }
     }
-    
+
     /**
      * @dev 获取可用的最终确定奖励
      * 需要根据实际系统设计实现

@@ -237,5 +237,4 @@ interface IValidatorManager {
      */
     function getValidatorIndex(address validator) external view returns (uint64);
     function deposit() external payable;
-
 }

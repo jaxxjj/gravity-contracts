@@ -15,7 +15,7 @@ contract StakeHub is System, IReconfigurableModule, Initializable {
     constructor() {
         _disableInitializers();
     }
-    
+
     /**
      * @dev 处理epoch转换
      */

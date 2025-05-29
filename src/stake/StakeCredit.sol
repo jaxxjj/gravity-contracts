@@ -23,13 +23,7 @@ import "@src/interfaces/ITimestamp.sol";
  * - 四状态余额 = 直接对应Aptos四个Coin<AptosCoin>字段
  */
 
-contract StakeCredit is 
-    Initializable,
-    ERC20Upgradeable,
-    ReentrancyGuardUpgradeable,
-    System,
-    IStakeCredit
-{
+contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IStakeCredit {
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100% (对应Aptos COMMISSION_RATE_BASE)
 
     // ======== Aptos StakePool四状态模型 ========
