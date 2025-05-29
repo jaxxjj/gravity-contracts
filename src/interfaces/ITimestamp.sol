@@ -16,8 +16,6 @@ interface ITimestamp {
     /// Events
     event GlobalTimeUpdated(address indexed proposer, uint64 oldTimestamp, uint64 newTimestamp, bool isNilBlock);
 
-    /// @dev 秒和微秒之间的转换因子
-    function MICRO_CONVERSION_FACTOR() external view returns (uint64);
 
     /// @dev 当前Unix时间（微秒）
     function microseconds() external view returns (uint64);

@@ -65,6 +65,7 @@ interface IValidatorManager {
 
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);
     event ValidatorInfoUpdated(address indexed validator, string field);
+    event RewardsCollected(uint256 amount, uint256 totalIncoming);
 
     /// 验证者集合管理事件（借鉴Aptos）
     event ValidatorJoinRequested(address indexed validator, uint64 votingPower, uint64 epoch);
@@ -235,4 +236,6 @@ interface IValidatorManager {
      * @return 验证者索引，如果不是活跃验证者则可能返回0或revert
      */
     function getValidatorIndex(address validator) external view returns (uint64);
+    function deposit() external payable;
+
 }
