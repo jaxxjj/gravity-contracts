@@ -6,9 +6,8 @@ pragma solidity ^0.8.17;
  * @dev JWK管理器接口定义
  */
 interface IJWKManager {
-    
     // ======== 结构体定义 ========
-    
+
     struct OIDCProvider {
         string name;
         string configUrl;
@@ -29,7 +28,7 @@ interface IJWKManager {
     }
 
     struct JWK {
-        uint8 variant;      // 0: RSA_JWK, 1: UnsupportedJWK
+        uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK
         bytes data;
     }
 
@@ -58,7 +57,7 @@ interface IJWKManager {
     }
 
     // ======== 事件定义 ========
-    
+
     event OIDCProviderAdded(string indexed name, string configUrl);
     event OIDCProviderRemoved(string indexed name);
     event OIDCProviderUpdated(string indexed name, string newConfigUrl);
@@ -94,8 +93,14 @@ interface IJWKManager {
 
     // 查询函数
     function getPatchedJWK(string calldata issuer, bytes calldata jwkId) external view returns (JWK memory);
-    function tryGetPatchedJWK(string calldata issuer, bytes calldata jwkId) external view returns (bool found, JWK memory jwk);
-    function getFederatedJWK(address dapp, string calldata issuer, bytes calldata jwkId) external view returns (JWK memory);
+    function tryGetPatchedJWK(string calldata issuer, bytes calldata jwkId)
+        external
+        view
+        returns (bool found, JWK memory jwk);
+    function getFederatedJWK(address dapp, string calldata issuer, bytes calldata jwkId)
+        external
+        view
+        returns (JWK memory);
     function getObservedJWKs() external view returns (AllProvidersJWKs memory);
     function getPatchedJWKs() external view returns (AllProvidersJWKs memory);
     function getFederatedJWKs(address dapp) external view returns (AllProvidersJWKs memory);

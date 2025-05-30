@@ -34,21 +34,21 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     error NotAuthorized();
 
     // ======== 结构体定义 ========
-    
+
     /// @dev OIDC提供者信息
     struct OIDCProvider {
-        string name;        // 提供者名称，如 "https://accounts.google.com"
-        string configUrl;   // OpenID配置URL
-        bool active;        // 是否激活
+        string name; // 提供者名称，如 "https://accounts.google.com"
+        string configUrl; // OpenID配置URL
+        bool active; // 是否激活
     }
 
     /// @dev RSA JWK结构
     struct RSA_JWK {
-        string kid;         // Key ID
-        string kty;         // Key Type (RSA)
-        string alg;         // Algorithm (RS256等)
-        string e;           // Public exponent
-        string n;           // Modulus
+        string kid; // Key ID
+        string kty; // Key Type (RSA)
+        string alg; // Algorithm (RS256等)
+        string e; // Public exponent
+        string n; // Modulus
     }
 
     /// @dev 不支持的JWK类型
@@ -59,55 +59,56 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
 
     /// @dev JWK联合体
     struct JWK {
-        uint8 variant;      // 0: RSA_JWK, 1: UnsupportedJWK
-        bytes data;         // 编码后的JWK数据
+        uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK
+        bytes data; // 编码后的JWK数据
     }
 
     /// @dev 提供者的JWK集合
     struct ProviderJWKs {
-        string issuer;      // 发行者
-        uint64 version;     // 版本号
-        JWK[] jwks;         // JWK数组，按kid排序
+        string issuer; // 发行者
+        uint64 version; // 版本号
+        JWK[] jwks; // JWK数组，按kid排序
     }
 
     /// @dev 所有提供者的JWK集合
     struct AllProvidersJWKs {
-        ProviderJWKs[] entries;  // 按issuer排序的提供者数组
+        ProviderJWKs[] entries; // 按issuer排序的提供者数组
     }
 
     /// @dev 补丁操作类型
     enum PatchType {
-        RemoveAll,      // 移除所有
-        RemoveIssuer,   // 移除特定发行者
-        RemoveJWK,      // 移除特定JWK
-        UpsertJWK       // 插入或更新JWK
+        RemoveAll, // 移除所有
+        RemoveIssuer, // 移除特定发行者
+        RemoveJWK, // 移除特定JWK
+        UpsertJWK // 插入或更新JWK
+
     }
 
     /// @dev 补丁操作
     struct Patch {
         PatchType patchType;
-        string issuer;      // 对于RemoveIssuer, RemoveJWK, UpsertJWK
-        bytes jwkId;        // 对于RemoveJWK
-        JWK jwk;           // 对于UpsertJWK
+        string issuer; // 对于RemoveIssuer, RemoveJWK, UpsertJWK
+        bytes jwkId; // 对于RemoveJWK
+        JWK jwk; // 对于UpsertJWK
     }
 
     // ======== 状态变量 ========
-    
+
     /// @dev 支持的OIDC提供者
     OIDCProvider[] public supportedProviders;
     mapping(string => uint256) public providerIndex; // name => index (index + 1, 0表示不存在)
 
     /// @dev 验证者观察到的JWKs（由共识写入）
-    AllProvidersJWKs public observedJWKs;
+    AllProvidersJWKs private observedJWKs;
 
     /// @dev 应用补丁后的JWKs（最终使用的）
-    AllProvidersJWKs public patchedJWKs;
+    AllProvidersJWKs private patchedJWKs;
 
     /// @dev 治理设置的补丁
     Patch[] public patches;
 
     /// @dev 联邦JWKs：dapp地址 => AllProvidersJWKs
-    mapping(address => AllProvidersJWKs) public federatedJWKs;
+    mapping(address => AllProvidersJWKs) private federatedJWKs;
 
     /// @dev 配置参数
     uint256 public maxSignaturesPerTxn;
@@ -130,7 +131,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     // ======== 修饰符 ========
     modifier onlyConsensusWriter() {
         // 假设共识层有特殊权限写入ObservedJWKs
-        if (msg.sender != SYSTEM_CALLER && msg.sender != CONSENSUS_ADDR) {
+        if (msg.sender != SYSTEM_CALLER) {
             revert NotAuthorized();
         }
         _;
@@ -142,7 +143,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     }
 
     // ======== 初始化 ========
-    
+
     /**
      * @dev 禁用构造函数中的初始化器
      * @custom:oz-upgrades-unsafe-allow constructor
@@ -211,20 +212,12 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 添加OIDC提供者
      */
-    function upsertOIDCProvider(string calldata name, string calldata configUrl) 
-        external 
-        onlyGov 
-        validIssuer(name) 
-    {
+    function upsertOIDCProvider(string calldata name, string calldata configUrl) external onlyGov validIssuer(name) {
         uint256 index = providerIndex[name];
-        
+
         if (index == 0) {
             // 新增提供者
-            supportedProviders.push(OIDCProvider({
-                name: name,
-                configUrl: configUrl,
-                active: true
-            }));
+            supportedProviders.push(OIDCProvider({name: name, configUrl: configUrl, active: true}));
             providerIndex[name] = supportedProviders.length;
             emit OIDCProviderAdded(name, configUrl);
         } else {
@@ -276,10 +269,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
      * @dev 更新观察到的JWKs（仅由共识层调用）
      * 对应Aptos的upsert_into_observed_jwks函数
      */
-    function upsertObservedJWKs(ProviderJWKs[] calldata providerJWKsArray) 
-        external 
-        onlyConsensusWriter 
-    {
+    function upsertObservedJWKs(ProviderJWKs[] calldata providerJWKsArray) external onlyConsensusWriter {
         // 更新observedJWKs
         for (uint256 i = 0; i < providerJWKsArray.length; i++) {
             _upsertProviderJWKs(observedJWKs, providerJWKsArray[i]);
@@ -294,11 +284,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 从观察到的JWKs中移除发行者（仅由治理调用）
      */
-    function removeIssuerFromObservedJWKs(string calldata issuer) 
-        external 
-        onlyGov 
-        validIssuer(issuer) 
-    {
+    function removeIssuerFromObservedJWKs(string calldata issuer) external onlyGov validIssuer(issuer) {
         _removeIssuer(observedJWKs, issuer);
         _regeneratePatchedJWKs();
         emit ObservedJWKsUpdated(block.number, keccak256(abi.encode(observedJWKs)));
@@ -314,7 +300,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
         for (uint256 i = 0; i < newPatches.length; i++) {
             patches.push(newPatches[i]);
         }
-        
+
         _regeneratePatchedJWKs();
         emit PatchesUpdated(newPatches.length);
     }
@@ -342,15 +328,14 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
         string[] calldata nArray
     ) external validIssuer(issuer) {
         if (kidArray.length == 0) revert InvalidJWKFormat();
-        if (kidArray.length != algArray.length || 
-            kidArray.length != eArray.length || 
-            kidArray.length != nArray.length) {
+        if (kidArray.length != algArray.length || kidArray.length != eArray.length || kidArray.length != nArray.length)
+        {
             revert InvalidJWKFormat();
         }
 
         // 获取或创建dapp的联邦JWKs
         AllProvidersJWKs storage dappJWKs = federatedJWKs[msg.sender];
-        
+
         // 先移除该issuer的所有现有JWKs
         _removeIssuer(dappJWKs, issuer);
 
@@ -363,14 +348,9 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
 
         // 添加所有JWKs
         for (uint256 i = 0; i < kidArray.length; i++) {
-            RSA_JWK memory rsaJWK = RSA_JWK({
-                kid: kidArray[i],
-                kty: "RSA",
-                alg: algArray[i],
-                e: eArray[i],
-                n: nArray[i]
-            });
-            
+            RSA_JWK memory rsaJWK =
+                RSA_JWK({kid: kidArray[i], kty: "RSA", alg: algArray[i], e: eArray[i], n: nArray[i]});
+
             newProviderJWKs.jwks[i] = JWK({
                 variant: 0, // RSA_JWK
                 data: abi.encode(rsaJWK)
@@ -394,7 +374,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
      */
     function patchFederatedJWKs(Patch[] calldata patchArray) external {
         AllProvidersJWKs storage dappJWKs = federatedJWKs[msg.sender];
-        
+
         for (uint256 i = 0; i < patchArray.length; i++) {
             _applyPatch(dappJWKs, patchArray[i]);
         }
@@ -413,21 +393,17 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 获取补丁后的JWK
      */
-    function getPatchedJWK(string calldata issuer, bytes calldata jwkId) 
-        external 
-        view 
-        returns (JWK memory) 
-    {
+    function getPatchedJWK(string calldata issuer, bytes calldata jwkId) external view returns (JWK memory) {
         return _getJWKByIssuer(patchedJWKs, issuer, jwkId);
     }
 
     /**
      * @dev 尝试获取补丁后的JWK（不会revert）
      */
-    function tryGetPatchedJWK(string calldata issuer, bytes calldata jwkId) 
-        external 
-        view 
-        returns (bool found, JWK memory jwk) 
+    function tryGetPatchedJWK(string calldata issuer, bytes calldata jwkId)
+        external
+        view
+        returns (bool found, JWK memory jwk)
     {
         try this.getPatchedJWK(issuer, jwkId) returns (JWK memory result) {
             return (true, result);
@@ -439,10 +415,10 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 获取联邦JWK
      */
-    function getFederatedJWK(address dapp, string calldata issuer, bytes calldata jwkId) 
-        external 
-        view 
-        returns (JWK memory) 
+    function getFederatedJWK(address dapp, string calldata issuer, bytes calldata jwkId)
+        external
+        view
+        returns (JWK memory)
     {
         return _getJWKByIssuer(federatedJWKs[dapp], issuer, jwkId);
     }
@@ -506,10 +482,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 复制AllProvidersJWKs
      */
-    function _copyAllProvidersJWKs(
-        AllProvidersJWKs storage dest, 
-        AllProvidersJWKs storage src
-    ) internal {
+    function _copyAllProvidersJWKs(AllProvidersJWKs storage dest, AllProvidersJWKs storage src) internal {
         // 清空目标
         delete dest.entries;
 
@@ -521,7 +494,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
 
             destEntry.issuer = srcEntry.issuer;
             destEntry.version = srcEntry.version;
-            
+
             delete destEntry.jwks;
             for (uint256 j = 0; j < srcEntry.jwks.length; j++) {
                 destEntry.jwks.push(srcEntry.jwks[j]);
@@ -549,10 +522,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 插入或更新ProviderJWKs
      */
-    function _upsertProviderJWKs(
-        AllProvidersJWKs storage jwks, 
-        ProviderJWKs memory providerJWKs
-    ) internal {
+    function _upsertProviderJWKs(AllProvidersJWKs storage jwks, ProviderJWKs memory providerJWKs) internal {
         // 查找是否已存在
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, providerJWKs.issuer)) {
@@ -599,11 +569,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 插入或更新JWK
      */
-    function _upsertJWK(
-        AllProvidersJWKs storage jwks, 
-        string memory issuer, 
-        JWK memory jwk
-    ) internal {
+    function _upsertJWK(AllProvidersJWKs storage jwks, string memory issuer, JWK memory jwk) internal {
         // 查找或创建ProviderJWKs
         int256 providerIndex = -1;
         for (uint256 i = 0; i < jwks.entries.length; i++) {
@@ -615,18 +581,14 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
 
         if (providerIndex == -1) {
             // 创建新的ProviderJWKs
-            ProviderJWKs memory newProvider = ProviderJWKs({
-                issuer: issuer,
-                version: 1,
-                jwks: new JWK[](1)
-            });
+            ProviderJWKs memory newProvider = ProviderJWKs({issuer: issuer, version: 1, jwks: new JWK[](1)});
             newProvider.jwks[0] = jwk;
             _upsertProviderJWKs(jwks, newProvider);
         } else {
             // 更新现有ProviderJWKs中的JWK
             ProviderJWKs storage provider = jwks.entries[uint256(providerIndex)];
             bytes memory jwkId = _getJWKId(jwk);
-            
+
             // 查找JWK是否已存在
             bool found = false;
             for (uint256 i = 0; i < provider.jwks.length; i++) {
@@ -636,7 +598,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
                     break;
                 }
             }
-            
+
             if (!found) {
                 // 添加新JWK（保持按kid排序）
                 JWK[] memory newJWKs = new JWK[](provider.jwks.length + 1);
@@ -649,7 +611,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
                     }
                     insertIndex = i + 1;
                 }
-                
+
                 for (uint256 i = 0; i < insertIndex; i++) {
                     newJWKs[i] = provider.jwks[i];
                 }
@@ -657,7 +619,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
                 for (uint256 i = insertIndex; i < provider.jwks.length; i++) {
                     newJWKs[i + 1] = provider.jwks[i];
                 }
-                
+
                 delete provider.jwks;
                 for (uint256 i = 0; i < newJWKs.length; i++) {
                     provider.jwks.push(newJWKs[i]);
@@ -669,11 +631,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 移除特定JWK
      */
-    function _removeJWK(
-        AllProvidersJWKs storage jwks, 
-        string memory issuer, 
-        bytes memory jwkId
-    ) internal {
+    function _removeJWK(AllProvidersJWKs storage jwks, string memory issuer, bytes memory jwkId) internal {
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, issuer)) {
                 ProviderJWKs storage provider = jwks.entries[i];
@@ -695,11 +653,11 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     /**
      * @dev 根据发行者和JWK ID获取JWK
      */
-    function _getJWKByIssuer(
-        AllProvidersJWKs storage jwks, 
-        string memory issuer, 
-        bytes memory jwkId
-    ) internal view returns (JWK memory) {
+    function _getJWKByIssuer(AllProvidersJWKs storage jwks, string memory issuer, bytes memory jwkId)
+        internal
+        view
+        returns (JWK memory)
+    {
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, issuer)) {
                 ProviderJWKs storage provider = jwks.entries[i];
@@ -737,9 +695,9 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
     function _compareStrings(string memory a, string memory b) internal pure returns (int256) {
         bytes memory aBytes = bytes(a);
         bytes memory bBytes = bytes(b);
-        
+
         uint256 minLength = aBytes.length < bBytes.length ? aBytes.length : bBytes.length;
-        
+
         for (uint256 i = 0; i < minLength; i++) {
             if (uint8(aBytes[i]) < uint8(bBytes[i])) {
                 return -1;
@@ -747,7 +705,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IReconfigurableMod
                 return 1;
             }
         }
-        
+
         if (aBytes.length < bBytes.length) {
             return -1;
         } else if (aBytes.length > bBytes.length) {
