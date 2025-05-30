@@ -67,11 +67,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     /*----------------- 修饰符 -----------------*/
 
-    modifier onlyInitialized() {
-        if (!initialized) revert NotInitialized();
-        _;
-    }
-
     modifier validatorExists(address validator) {
         if (!validatorInfos[validator].registered) {
             revert ValidatorNotExists(validator);
@@ -145,7 +140,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         payable
         nonReentrant
         whenNotPaused
-        onlyInitialized
     {
         address validator = msg.sender;
 
@@ -208,7 +202,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 加入验证者集合（对应Aptos的join_validator_set）
      */
-    function joinValidatorSet(address validator) external whenNotPaused onlyInitialized validatorExists(validator) {
+    function joinValidatorSet(address validator) external whenNotPaused validatorExists(validator) {
         require(
             msg.sender == validator || IAccessControl(ACCESS_CONTROL_ADDR).hasOperatorPermission(validator, msg.sender),
             "Not authorized"
@@ -263,7 +257,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 离开验证者集合（对应Aptos的leave_validator_set）
      */
-    function leaveValidatorSet(address validator) external whenNotPaused onlyInitialized validatorExists(validator) {
+    function leaveValidatorSet(address validator) external whenNotPaused validatorExists(validator) {
         require(
             msg.sender == validator || IAccessControl(ACCESS_CONTROL_ADDR).hasOperatorPermission(validator, msg.sender),
             "Not authorized"
@@ -308,7 +302,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 新epoch处理（对应Aptos stake.move中on_new_epoch的验证者集合更新部分）
      */
-    function onNewEpoch() external onlyStakeHub onlyInitialized {
+    function onNewEpoch() external onlyStakeHub {
         // 处理StakeCredit的epoch转换
         _processStakeCreditEpochTransitions();
 
@@ -347,7 +341,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 获取验证者状态（对应Aptos的get_validator_state）
      */
-    function getValidatorState(address validator) public view onlyInitialized returns (uint64) {
+    function getValidatorState(address validator) public view returns (uint64) {
         if (!validatorInfos[validator].registered) {
             return uint64(ValidatorStatus.INACTIVE);
         }
@@ -364,12 +358,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 获取活跃验证者列表
      */
-    function getActiveValidators()
-        external
-        view
-        onlyInitialized
-        returns (address[] memory validators, uint64[] memory votingPowers)
-    {
+    function getActiveValidators() external view returns (address[] memory validators, uint64[] memory votingPowers) {
         uint256 length = activeValidators.length();
         validators = new address[](length);
         votingPowers = new uint64[](length);
@@ -386,14 +375,14 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 检查验证者是否为当前活跃验证者
      */
-    function isCurrentValidator(address validator) external view onlyInitialized returns (bool) {
+    function isCurrentValidator(address validator) external view returns (bool) {
         return validatorInfos[validator].status == ValidatorStatus.ACTIVE;
     }
 
     /**
      * @dev 获取验证者集合数据
      */
-    function getValidatorSetData() external view onlyInitialized returns (ValidatorSetData memory) {
+    function getValidatorSetData() external view returns (ValidatorSetData memory) {
         return validatorSetData;
     }
 
