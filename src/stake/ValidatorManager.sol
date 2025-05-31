@@ -290,12 +290,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         whenNotPaused
         whenValidatorSetChangeAllowed
         validatorExists(validator)
+        onlyValidatorOperator(validator)
     {
-        require(
-            msg.sender == validator || IAccessControl(ACCESS_CONTROL_ADDR).hasOperatorPermission(validator, msg.sender),
-            "Not authorized"
-        );
-
         ValidatorInfo storage info = validatorInfos[validator];
 
         // 检查当前状态
@@ -346,12 +342,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         whenNotPaused
         whenValidatorSetChangeAllowed
         validatorExists(validator)
+        onlyValidatorOperator(validator)
     {
-        require(
-            msg.sender == validator || IAccessControl(ACCESS_CONTROL_ADDR).hasOperatorPermission(validator, msg.sender),
-            "Not authorized"
-        );
-
         ValidatorInfo storage info = validatorInfos[validator];
         uint8 currentStatus = uint8(info.status);
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
@@ -403,18 +395,14 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @dev 新epoch处理（对应Aptos stake.move中on_new_epoch的验证者集合更新部分）
      */
     function onNewEpoch() external onlyStakeHub {
-        // 处理StakeCredit的epoch转换
-        _processStakeCreditEpochTransitions();
+        uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
+        uint64 minStakeRequired = uint64(IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake());
 
         // 1. 分发基于性能的奖励 (从StakeReward合并)
         _distributeRewards();
 
         // 2. 分发累积的区块奖励
         _distributeValidatorRewards();
-
-        uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
-        uint64 newEpoch = currentEpoch + 1;
-        uint64 minStakeRequired = uint64(IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake());
 
         // 3. 激活pending_active验证者
         _activatePendingValidators(currentEpoch);
@@ -425,12 +413,14 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // 5. 重新计算验证者集合
         _recalculateValidatorSet(minStakeRequired, currentEpoch);
 
-        // 6. 重置加入权重
+        // 6. 处理所有相关验证者的StakeCredit合约的epoch转换
+        _processAllStakeCreditsNewEpoch();
+
+        // 7. 重置加入权重
         validatorSetData.totalJoiningPower = 0;
 
-        emit NewEpoch(newEpoch, activeValidators.length(), validatorSetData.totalVotingPower);
         emit ValidatorSetUpdated(
-            newEpoch,
+            currentEpoch + 1,
             activeValidators.length(),
             pendingActive.length(),
             pendingInactive.length(),
@@ -798,13 +788,23 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /**
-     * @dev 处理所有StakeCredit合约的epoch转换
+     * @dev 处理所有相关验证者的StakeCredit合约的epoch转换
      */
-    function _processStakeCreditEpochTransitions() internal {
-        address[] memory allValidators = activeValidators.values();
-
-        for (uint256 i = 0; i < allValidators.length; i++) {
-            address validator = allValidators[i];
+    function _processAllStakeCreditsNewEpoch() internal {
+        // 处理活跃验证者的StakeCredit
+        address[] memory activeVals = activeValidators.values();
+        for (uint256 i = 0; i < activeVals.length; i++) {
+            address validator = activeVals[i];
+            address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
+            if (stakeCreditAddress != address(0)) {
+                StakeCredit(payable(stakeCreditAddress)).onNewEpoch();
+            }
+        }
+        
+        // 处理待移除验证者的StakeCredit
+        address[] memory pendingInactiveVals = pendingInactive.values();
+        for (uint256 i = 0; i < pendingInactiveVals.length; i++) {
+            address validator = pendingInactiveVals[i];
             address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
             if (stakeCreditAddress != address(0)) {
                 StakeCredit(payable(stakeCreditAddress)).onNewEpoch();
@@ -956,21 +956,13 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /**
-     * @dev 区块生产者调用，存入当前区块的交易费用作为奖励
+     * @dev systemcaller调用，存入当前区块的交易费用作为奖励
      */
     function deposit() external payable onlySystemCaller {
-        // 直接累积到总奖励池，不分配给特定验证者
+        // 直接累积到总奖励池
         totalIncoming += msg.value;
 
         emit RewardsCollected(msg.value, totalIncoming);
-    }
-
-    /**
-     * @dev 分发基于性能的奖励给所有活跃验证者
-     * 集成自 StakeReward.distributeRewards()
-     */
-    function distributeRewards() public onlyStakeHub nonReentrant whenNotPaused {
-        _distributeRewards();
     }
 
     /**
@@ -1084,59 +1076,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // 重置奖励池
         totalIncoming = 0;
-    }
-
-    /**
-     * @dev 分发最终性奖励给验证者
-     * 集成自 StakeReward.distributeFinalityReward()
-     */
-    function distributeFinalityReward(address[] calldata validators, uint256[] calldata weights)
-        external
-        onlyCoinbase
-        nonReentrant
-        whenNotPaused
-    {
-        // 1. 从系统奖励池获取奖励
-        uint256 totalReward = _getFinalityReward();
-        if (totalReward == 0) return;
-
-        // 2. 计算总权重
-        uint256 totalWeight = 0;
-        for (uint256 i = 0; i < weights.length; i++) {
-            totalWeight += weights[i];
-        }
-        if (totalWeight == 0) return;
-
-        // 3. 按权重分配奖励
-        for (uint256 i = 0; i < validators.length; i++) {
-            address validator = validators[i];
-
-            // 计算该验证者应得奖励
-            uint256 validatorReward = totalReward * weights[i] / totalWeight;
-
-            // 获取验证者 StakeCredit 地址
-            address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
-
-            if (stakeCreditAddress != address(0) && validatorReward > 0) {
-                // 获取佣金率
-                uint64 commissionRate = validatorInfos[validator].commissionRate;
-
-                // 发送奖励
-                StakeCredit(payable(stakeCreditAddress)).distributeReward{value: validatorReward}(commissionRate);
-
-                emit FinalityRewardDistributed(validator, validatorReward);
-            }
-        }
-    }
-
-    /**
-     * @dev 获取可用的最终确定奖励
-     * 需要根据实际系统设计实现
-     */
-    function _getFinalityReward() internal returns (uint256) {
-        // 实现根据系统设计获取最终确定奖励的逻辑
-        // 可以从系统奖励合约调用或使用其他机制
-        return 0; // 临时返回值，需要根据实际情况实现
     }
 
     /**

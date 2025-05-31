@@ -92,8 +92,6 @@ interface IValidatorManager {
         uint128 totalVotingPower
     );
 
-    event NewEpoch(uint64 indexed epoch, uint256 activeValidators, uint128 totalVotingPower);
-
     // 注册相关错误
     error ValidatorAlreadyExists(address validator);
     error ValidatorNotExists(address validator);
