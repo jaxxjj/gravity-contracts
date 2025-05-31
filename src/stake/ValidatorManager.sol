@@ -398,25 +398,27 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
         uint64 minStakeRequired = uint64(IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake());
 
-        // 1. 分发基于性能的奖励 (从StakeReward合并)
+        // 1. 先进行验证者状态转换
+        // 1.1 激活pending_active验证者
+        _activatePendingValidators(currentEpoch);
+        
+        // 1.2 移除pending_inactive验证者
+        _removePendingInactiveValidators(currentEpoch);
+        
+        // 2. 处理所有相关验证者的StakeCredit合约的epoch转换
+        _processAllStakeCreditsNewEpoch();
+        
+        // 3. 分发奖励 (基于性能和累积的区块奖励)
+        // 3.1 分发基于性能的奖励 (从StakeReward合并)
         _distributeRewards();
-
-        // 2. 分发累积的区块奖励
+        
+        // 3.2 分发累积的区块奖励
         _distributeValidatorRewards();
 
-        // 3. 激活pending_active验证者
-        _activatePendingValidators(currentEpoch);
-
-        // 4. 移除pending_inactive验证者
-        _removePendingInactiveValidators(currentEpoch);
-
-        // 5. 重新计算验证者集合
+        // 4. 重新计算验证者集合 (基于最新的质押情况)
         _recalculateValidatorSet(minStakeRequired, currentEpoch);
 
-        // 6. 处理所有相关验证者的StakeCredit合约的epoch转换
-        _processAllStakeCreditsNewEpoch();
-
-        // 7. 重置加入权重
+        // 5. 重置加入权重
         validatorSetData.totalJoiningPower = 0;
 
         emit ValidatorSetUpdated(
@@ -652,6 +654,13 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             // 更新状态
             info.status = ValidatorStatus.INACTIVE;
             info.lastEpochActive = currentEpoch;
+
+            // 处理该验证者的StakeCredit
+            address stakeCreditAddress = info.stakeCreditAddress;
+            if (stakeCreditAddress != address(0)) {
+                // 处理StakeCredit的资金状态
+                StakeCredit(payable(stakeCreditAddress)).processInactiveValidator();
+            }
 
             emit ValidatorStatusChanged(
                 validator, uint8(ValidatorStatus.PENDING_INACTIVE), uint8(ValidatorStatus.INACTIVE), currentEpoch

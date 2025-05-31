@@ -26,6 +26,10 @@ import "@src/interfaces/ITimestamp.sol";
 contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IStakeCredit {
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100% (对应Aptos COMMISSION_RATE_BASE)
 
+    // ======== 事件定义 ========
+    event RewardDistributed(uint256 activeReward, uint256 pendingInactiveReward);
+    event PendingInactiveProcessed(uint256 amount);
+    
     // ======== Aptos StakePool四状态模型 ========
     /// 对应Aptos StakePool.active
     uint256 public active;
@@ -38,6 +42,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
     /// 对应Aptos StakePool.pending_inactive
     uint256 public pendingInactive;
+    
+    /// 待分配的奖励池
+    uint256 public pendingRewards;
 
     /// 对应Aptos StakePool.locked_until_secs
     uint256 public lockedUntilSecs;
@@ -62,8 +69,8 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         totalPooledGRecord[index] = getTotalPooledG();
         rewardRecord[index] += msg.value;
 
-        // 奖励直接加到active中 (对应Aptos逻辑)
-        active += msg.value;
+        // 奖励先存入待分配池，而不是直接加到active中
+        pendingRewards += msg.value;
     }
 
     /**
@@ -148,7 +155,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // 份额计算
         shares = _calculateShares(msg.value);
 
-        // 更新状态
+        // 更新状态 - 使用验证者状态判断
         _updateStakeState(msg.value);
 
         // 铸造份额并发出事件
@@ -176,9 +183,12 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param amount 质押金额
      */
     function _updateStakeState(uint256 amount) private {
-        // 如果验证者当前有active或pending_inactive（即参与当前epoch），新质押进入pending_active
+        // 基于验证者当前状态判断资金去向
+        bool isCurrentValidator = _isCurrentEpochValidator();
+        
+        // 如果验证者是当前epoch验证者，新质押进入pending_active
         // 否则直接进入active（验证者不在当前epoch中）
-        if (active > 0 || pendingInactive > 0) {
+        if (isCurrentValidator) {
             pendingActive += amount;
         } else {
             active += amount;
@@ -246,10 +256,10 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev 提取已解锁的资金
      * @param delegator 委托人地址
-     * @param shares 要提取的份额数量（0表示提取全部可用）
+     * @param amount 要提取的具体金额（0表示提取全部可用）
      * @return withdrawnAmount 提取的G数量
      */
-    function withdraw(address payable delegator, uint256 shares)
+    function withdraw(address payable delegator, uint256 amount)
         external
         onlyStakeHub
         nonReentrant
@@ -261,39 +271,25 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // 2. 只能从inactive状态提取
         if (inactive == 0) revert NoWithdrawableAmount();
 
-        // 3. 如果shares为0，计算delegator应得的inactive部分
-        if (shares == 0) {
-            // 计算delegator在总pool中的比例
-            uint256 delegatorBalance = balanceOf(delegator);
-            uint256 totalShares = totalSupply();
-            if (totalShares == 0 || delegatorBalance == 0) revert NoWithdrawableAmount();
-
-            // 计算delegator可提取的inactive金额
-            withdrawnAmount = (inactive * delegatorBalance) / totalShares;
-            shares = delegatorBalance;
-        } else {
-            // 4. 检查delegator余额
-            if (shares > balanceOf(delegator)) revert InsufficientBalance();
-            withdrawnAmount = getPooledGByShares(shares);
-
-            // 5. 检查是否超过delegator应得的inactive部分
-            uint256 delegatorBalance = balanceOf(delegator);
-            uint256 totalShares = totalSupply();
-            uint256 maxWithdrawable = (inactive * delegatorBalance) / totalShares;
-
-            if (withdrawnAmount > maxWithdrawable) {
-                withdrawnAmount = maxWithdrawable;
-                shares = getSharesByPooledG(withdrawnAmount);
-            }
+        // 3. 如果amount为0，设置为全部inactive
+        if (amount == 0 || amount > inactive) {
+            amount = inactive;
         }
 
-        if (withdrawnAmount == 0) revert NoWithdrawableAmount();
+        // 4. 计算要销毁的份额
+        withdrawnAmount = amount; // 直接使用指定金额
+        uint256 sharesToBurn = getSharesByPooledG(withdrawnAmount);
+        
+        // 5. 检查delegator份额是否足够
+        if (sharesToBurn > balanceOf(delegator)) {
+            revert InsufficientBalance();
+        }
 
         // 6. 更新状态 - 从inactive中减少
         inactive -= withdrawnAmount;
 
         // 7. 销毁对应份额
-        _burn(delegator, shares);
+        _burn(delegator, sharesToBurn);
 
         // 8. 转账
         (bool success,) = delegator.call{value: withdrawnAmount}("");
@@ -353,8 +349,8 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         totalPooledGRecord[index] = getTotalPooledG();
         rewardRecord[index] += reward;
 
-        // 奖励加到active中
-        active += reward;
+        // 奖励加到待分配池中，而不是直接加到active
+        pendingRewards += reward;
 
         // 为佣金受益人铸造佣金份额
         if (commission > 0) {
@@ -365,6 +361,8 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             address beneficiary = IAccessControl(ACCESS_CONTROL_ADDR).getCommissionBeneficiary(validator);
 
             _mint(beneficiary, commissionShares);
+            
+            // 佣金直接加到active中
             active += commission;
         }
 
@@ -380,16 +378,22 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         uint256 oldPendingActive = pendingActive;
         uint256 oldPendingInactive = pendingInactive;
 
-        // 1. pending_active -> active (新质押生效)
+        // 1. 先分配累积的奖励
+        _distributeAccumulatedRewards();
+        
+        // 2. pending_active -> active (新质押生效)
         active += pendingActive;
         pendingActive = 0;
 
-        // 2. 检查锁定期，如果到期则 pending_inactive -> inactive
+        // 3. 检查锁定期，如果到期则 pending_inactive -> inactive
         _checkAndProcessLockup();
+        
+        // 4. 更新锁定期（仅针对活跃验证者）
+        _updateLockupIfNeeded();
 
-        // 3. 验证状态一致性
-        uint256 newTotal = active + inactive + pendingActive + pendingInactive;
-        uint256 oldTotal = oldActive + oldInactive + oldPendingActive + oldPendingInactive;
+        // 5. 验证状态一致性
+        uint256 newTotal = active + inactive + pendingActive + pendingInactive + pendingRewards;
+        uint256 oldTotal = oldActive + oldInactive + oldPendingActive + oldPendingInactive + pendingRewards;
         if (newTotal != oldTotal) revert StateTransitionError();
 
         emit EpochTransitioned(
@@ -402,6 +406,50 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             pendingActive,
             pendingInactive
         );
+    }
+    
+    /**
+     * @dev 分配累积的奖励
+     */
+    function _distributeAccumulatedRewards() internal {
+        if (pendingRewards == 0) return;
+        
+        // 只给 active 和 pending_inactive 分配奖励（符合 Aptos 模型）
+        uint256 totalEligible = active + pendingInactive;
+        
+        if (totalEligible > 0) {
+            // 按比例分配奖励
+            uint256 activeReward = (pendingRewards * active) / totalEligible;
+            uint256 pendingInactiveReward = pendingRewards - activeReward;
+            
+            active += activeReward;
+            pendingInactive += pendingInactiveReward;
+            
+            emit RewardDistributed(activeReward, pendingInactiveReward);
+        } else {
+            // 如果没有合格的质押，奖励直接进入 active
+            active += pendingRewards;
+            emit RewardDistributed(pendingRewards, 0);
+        }
+        
+        // 重置待分配奖励
+        pendingRewards = 0;
+    }
+    
+    /**
+     * @dev 更新锁定期（如果需要）
+     */
+    function _updateLockupIfNeeded() internal {
+        // 只有当验证者为当前 epoch 验证者时才更新锁定期
+        bool isCurrentValidator = _isCurrentEpochValidator();
+        if (isCurrentValidator) {
+            uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+            if (lockedUntilSecs <= currentTime) {
+                uint256 newLockupTime = currentTime + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
+                lockedUntilSecs = newLockupTime;
+                emit LockupRenewed(newLockupTime);
+            }
+        }
     }
 
     /**
@@ -499,10 +547,13 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         return getPooledGByShares(balanceOf(delegator));
     }
 
+    /**
+     * @dev 检查验证者是否为当前epoch验证者
+     * 通过调用ValidatorManager合约判断
+     */
     function _isCurrentEpochValidator() internal view returns (bool) {
-        // 基于自身状态判断
-        // 如果有active质押或pendingInactive质押(即当前epoch仍有投票权)，则认为是当前epoch的验证者
-        return (active > 0 || pendingInactive > 0);
+        // 使用ValidatorManager合约进行判断
+        return IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(validator);
     }
 
     function _getUnbondPeriod() internal view returns (uint256) {
@@ -581,5 +632,23 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             totalSupply(),
             currentTime < lockedUntilSecs
         );
+    }
+
+    /**
+     * @dev 处理非活跃验证者的资金状态
+     * 当验证者变为INACTIVE且锁定期已过时，自动将pending_inactive转为inactive
+     */
+    function processInactiveValidator() external onlyStakeHub {
+        // 检查验证者状态
+        bool isInactive = !_isCurrentEpochValidator();
+        
+        if (isInactive) {
+            uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+            if (currentTime >= lockedUntilSecs && pendingInactive > 0) {
+                inactive += pendingInactive;
+                pendingInactive = 0;
+                emit PendingInactiveProcessed(pendingInactive);
+            }
+        }
     }
 }
