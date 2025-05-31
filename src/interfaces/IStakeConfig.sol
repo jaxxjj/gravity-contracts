@@ -19,11 +19,12 @@ interface IStakeConfig {
     function votingPowerIncreaseLimit() external view returns (uint256);
     function maxCommissionRate() external view returns (uint256);
     function maxCommissionChangeRate() external view returns (uint256);
+    function lockAmount() external view returns (uint256);
 
     function PERCENTAGE_BASE() external view returns (uint256);
     function MAX_REWARDS_RATE() external view returns (uint256);
     function MAX_U64() external view returns (uint128);
-    function LOCK_AMOUNT() external pure returns (uint256);
+    function MAX_COMMISSION_RATE() external view returns (uint256);
 
     event ConfigParamUpdated(string parameter, uint256 oldValue, uint256 newValue);
     event ConfigBoolParamUpdated(string parameter, bool oldValue, bool newValue);
@@ -38,6 +39,7 @@ interface IStakeConfig {
     error StakeConfig__InvalidCommissionRate(uint256 rate, uint256 maxRate);
     error StakeConfig__WrongInitContext();
     error StakeConfig__InvalidParameter();
+    error StakeConfig__InvalidLockAmount(uint256 providedAmount);
 
     function initialize() external;
 
@@ -63,6 +65,7 @@ interface IStakeConfig {
         uint256 maxCommissionRate;
         uint256 maxCommissionChangeRate;
         uint256 redelegateFeeRate;
+        uint256 lockAmount;
     }
 
     function getAllConfigParams() external view returns (ConfigParams memory);

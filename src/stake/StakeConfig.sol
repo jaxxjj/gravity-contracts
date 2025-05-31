@@ -37,7 +37,10 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     uint128 public constant MAX_U64 = type(uint64).max;
 
     // 验证者锁定金额 (类似于保证金)
-    uint256 public constant LOCK_AMOUNT = 1 ether;
+    uint256 public lockAmount; // 验证者锁定金额 (类似于保证金)
+
+    // 质押系统规定的最大佣金率
+    uint256 public constant MAX_COMMISSION_RATE = 5_000;
 
     // 验证者集合最大大小 (最多45个验证者)
     uint64 public constant MAX_VALIDATOR_COUNT_LIMIT = 45;
@@ -103,6 +106,9 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
         // 佣金参数
         maxCommissionRate = 5000; // 50%最大佣金率
         maxCommissionChangeRate = 500; // 5%最大变更率
+
+        // 设置锁定金额初始值
+        lockAmount = 10000 ether;
     }
 
     /**
@@ -212,6 +218,13 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
             uint256 oldValue = redelegateFeeRate;
             redelegateFeeRate = newValue;
             emit ConfigParamUpdated("redelegateFeeRate", oldValue, newValue);
+        } else if (Strings.equal(key, "lockAmount")) {
+            uint256 newValue = abi.decode(value, (uint256));
+            if (newValue == 0) revert StakeConfig__InvalidLockAmount(newValue);
+
+            uint256 oldValue = lockAmount;
+            lockAmount = newValue;
+            emit ConfigParamUpdated("lockAmount", oldValue, newValue);
         } else {
             revert StakeConfig__ParameterNotFound(key);
         }
@@ -279,7 +292,8 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
             votingPowerIncreaseLimit: votingPowerIncreaseLimit,
             maxCommissionRate: maxCommissionRate,
             maxCommissionChangeRate: maxCommissionChangeRate,
-            redelegateFeeRate: redelegateFeeRate
+            redelegateFeeRate: redelegateFeeRate,
+            lockAmount: lockAmount
         });
     }
 

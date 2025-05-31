@@ -15,6 +15,13 @@ interface IValidatorManager {
         INACTIVE
     }
 
+    // 新增：Commission结构体
+    struct Commission {
+        uint64 rate; // the commission rate charged to delegators(10000 is 100%)
+        uint64 maxRate; // maximum commission rate which validator can ever charge
+        uint64 maxChangeRate; // maximum daily increase of the validator commission
+    }
+
     /// 验证者完整信息（整合两个合约的字段）
     struct ValidatorInfo {
         // 基本信息（来自ValidatorManager）
@@ -32,6 +39,7 @@ interface IValidatorManager {
         uint64 votingPower;
         uint256 validatorIndex;
         uint256 lastEpochActive;
+        uint256 updateTime; // 新增：最后一次更新时间
     }
 
     // 在接口中定义ValidatorSetData结构
@@ -46,9 +54,9 @@ interface IValidatorManager {
         bytes consensusPublicKey;
         bytes networkAddresses;
         bytes fullnodeAddresses;
-        bytes voteAddress; // 新增：BLS投票地址
-        bytes blsProof; // 新增：BLS proof
-        uint64 commissionRate;
+        bytes voteAddress; // BLS投票地址
+        bytes blsProof; // BLS proof
+        Commission commission; // 修改：从uint64 commissionRate修改为Commission结构体
         string moniker;
         address initialOperator;
         address initialVoter;
@@ -66,13 +74,14 @@ interface IValidatorManager {
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);
     event ValidatorInfoUpdated(address indexed validator, string field);
     event RewardsCollected(uint256 amount, uint256 totalIncoming);
+    event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate); // 新增：佣金率更新事件
 
     /// 验证者集合管理事件（借鉴Aptos）
     event ValidatorJoinRequested(address indexed validator, uint64 votingPower, uint64 epoch);
 
     event ValidatorLeaveRequested(address indexed validator, uint64 epoch);
 
-    event ValidatorStatusChanged(address indexed validator, uint64 oldStatus, uint64 newStatus, uint64 epoch);
+    event ValidatorStatusChanged(address indexed validator, uint8 oldStatus, uint8 newStatus, uint64 epoch);
 
     /// Epoch转换事件
     event ValidatorSetUpdated(
@@ -92,6 +101,8 @@ interface IValidatorManager {
     error InvalidStakeAmount(uint256 provided, uint256 required);
     error StakeCreditDeployFailed();
     error UnauthorizedCaller(address caller, address validator);
+    error InvalidCommission(); // 新增：无效的佣金设置错误
+    error UpdateTooFrequently(); // 新增：更新过于频繁错误
 
     // BLS验证相关错误
     error InvalidVoteAddress();
@@ -100,10 +111,10 @@ interface IValidatorManager {
     // 集合管理相关错误（借鉴Aptos）
     error AlreadyInitialized();
     error NotInitialized();
-    error ValidatorAlreadyActive(address validator);
+    error ValidatorNotInactive(address validator);
     error ValidatorAlreadyPending(address validator);
     error ValidatorNotActive(address validator);
-    error ValidatorSetTooLarge(uint256 current, uint256 max);
+    error ValidatorSetReachedMax(uint256 current, uint256 max);
     error InvalidVotingPower(uint64 votingPower);
     error LastValidatorCannotLeave();
     error VotingPowerIncreaseExceedsLimit();
@@ -112,7 +123,11 @@ interface IValidatorManager {
     /**
      * @dev 初始化验证者集合
      */
-    function initialize(address[] calldata initialValidators, uint64[] calldata initialVotingPowers) external;
+    function initialize(
+        address[] calldata initialValidators,
+        uint64[] calldata initialVotingPowers,
+        string[] calldata initialMonikers
+    ) external;
 
     // ======== 验证者注册 ========
 
@@ -159,6 +174,8 @@ interface IValidatorManager {
 
     /**
      * @dev 更新佣金率
+     * @param validator 验证者地址
+     * @param newCommissionRate 新的佣金率
      */
     function updateCommissionRate(address validator, uint64 newCommissionRate) external;
 
@@ -236,5 +253,9 @@ interface IValidatorManager {
      * @return 验证者索引，如果不是活跃验证者则可能返回0或revert
      */
     function getValidatorIndex(address validator) external view returns (uint64);
+
+    /**
+     * @dev 区块生产者存入区块奖励
+     */
     function deposit() external payable;
 }

@@ -63,16 +63,16 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
     }
 
     // ======== 状态变量 ========
-    
+
     /// @dev 系统配置
     Configuration private configuration;
-    
+
     /// @dev 注册的无密钥账户: 地址 => 账户信息
     mapping(address => KeylessAccountInfo) public accounts;
-    
+
     /// @dev 待定的配置更新
     Configuration private pendingConfiguration;
-    
+
     /// @dev 配置是否有待定更新
     bool private hasPendingConfigUpdate;
 
@@ -98,7 +98,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
     }
 
     // ======== 初始化 ========
-    
+
     /**
      * @dev 禁用构造函数中的初始化器
      * @custom:oz-upgrades-unsafe-allow constructor
@@ -112,13 +112,11 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      * @param _config 初始配置
      * @param _verifierAddress Groth16验证器合约地址
      */
-    function initialize(Configuration calldata _config, address _verifierAddress) 
-        external initializer 
-    {
+    function initialize(Configuration calldata _config, address _verifierAddress) external initializer {
         configuration = _config;
         hasPendingConfigUpdate = false;
         verifier = Verifier(_verifierAddress);
-        
+
         emit ConfigurationUpdated(keccak256(abi.encode(_config)));
         emit VerifierContractUpdated(_verifierAddress);
     }
@@ -213,7 +211,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      * @dev 添加覆盖aud值
      */
     function addOverrideAud(string calldata aud) external onlyGov {
-        for (uint i = 0; i < configuration.override_aud_vals.length; i++) {
+        for (uint256 i = 0; i < configuration.override_aud_vals.length; i++) {
             if (Strings.equal(configuration.override_aud_vals[i], aud)) {
                 return; // 已存在，直接返回
             }
@@ -227,7 +225,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      */
     function removeOverrideAud(string calldata aud) external onlyGov {
         uint256 length = configuration.override_aud_vals.length;
-        for (uint i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length; i++) {
             if (Strings.equal(configuration.override_aud_vals[i], aud)) {
                 // 将最后一个元素移到当前位置，然后弹出最后一个元素
                 if (i < length - 1) {
@@ -250,9 +248,9 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      * @param publicInputs 公共输入
      */
     function createKeylessAccount(
-        uint256[8] calldata proof, 
-        bytes32 jwkHash, 
-        string calldata issuer, 
+        uint256[8] calldata proof,
+        bytes32 jwkHash,
+        string calldata issuer,
         uint256[3] calldata publicInputs
     ) external onlyEOA returns (address) {
         // 使用Verifier合约验证ZK证明
@@ -262,15 +260,15 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             // 证明无效
             revert InvalidProof();
         }
-        
+
         // 计算账户地址
         address accountAddress = _deriveAccountAddress(jwkHash, issuer);
-        
+
         // 确保账户尚未创建
         if (accounts[accountAddress].creationTimestamp != 0) {
             revert AccountCreationFailed();
         }
-        
+
         // 创建账户信息
         accounts[accountAddress] = KeylessAccountInfo({
             account: accountAddress,
@@ -279,9 +277,9 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             issuer: issuer,
             creationTimestamp: block.timestamp
         });
-        
+
         emit KeylessAccountCreated(accountAddress, issuer, jwkHash);
-        
+
         return accountAddress;
     }
 
@@ -289,9 +287,9 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      * @dev 创建无密钥账户（使用压缩格式的证明）
      */
     function createKeylessAccountCompressed(
-        uint256[4] calldata compressedProof, 
-        bytes32 jwkHash, 
-        string calldata issuer, 
+        uint256[4] calldata compressedProof,
+        bytes32 jwkHash,
+        string calldata issuer,
         uint256[3] calldata publicInputs
     ) external onlyEOA returns (address) {
         // 使用Verifier合约验证压缩ZK证明
@@ -301,15 +299,15 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             // 证明无效
             revert InvalidProof();
         }
-        
+
         // 计算账户地址
         address accountAddress = _deriveAccountAddress(jwkHash, issuer);
-        
+
         // 确保账户尚未创建
         if (accounts[accountAddress].creationTimestamp != 0) {
             revert AccountCreationFailed();
         }
-        
+
         // 创建账户信息
         accounts[accountAddress] = KeylessAccountInfo({
             account: accountAddress,
@@ -318,9 +316,9 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             issuer: issuer,
             creationTimestamp: block.timestamp
         });
-        
+
         emit KeylessAccountCreated(accountAddress, issuer, jwkHash);
-        
+
         return accountAddress;
     }
 
@@ -338,7 +336,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
         if (accountInfo.creationTimestamp == 0) {
             revert NotAuthorized();
         }
-        
+
         // 使用Verifier合约验证ZK证明
         try verifier.verifyProof(proof, publicInputs) {
             // 证明有效，继续处理
@@ -346,10 +344,10 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             // 证明无效
             revert InvalidProof();
         }
-        
+
         // 更新JWK哈希
         accountInfo.jwkHash = newJwkHash;
-        
+
         emit KeylessAccountRecovered(accountAddress, accountInfo.issuer, newJwkHash);
     }
 
@@ -367,7 +365,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
         if (accountInfo.creationTimestamp == 0) {
             revert NotAuthorized();
         }
-        
+
         // 使用Verifier合约验证ZK证明
         try verifier.verifyCompressedProof(compressedProof, publicInputs) {
             // 证明有效，继续处理
@@ -375,10 +373,10 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             // 证明无效
             revert InvalidProof();
         }
-        
+
         // 更新JWK哈希
         accountInfo.jwkHash = newJwkHash;
-        
+
         emit KeylessAccountRecovered(accountAddress, accountInfo.issuer, newJwkHash);
     }
 
@@ -407,7 +405,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             hasPendingConfigUpdate = false;
             emit ConfigurationUpdated(keccak256(abi.encode(configuration)));
         }
-        
+
         return true;
     }
 

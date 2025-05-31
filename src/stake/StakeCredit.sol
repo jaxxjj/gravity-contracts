@@ -123,7 +123,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @dev 引导初始质押
      */
     function _bootstrapInitialHolder(uint256 initialAmount) private {
-        uint256 toLock = IStakeConfig(STAKE_CONFIG_ADDR).LOCK_AMOUNT();
+        uint256 toLock = IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
         if (initialAmount <= toLock || validator == address(0)) {
             revert StakeCredit__WrongInitContext();
         }
