@@ -37,7 +37,11 @@ interface IStakeCredit {
     );
     event LockupIncreased(uint256 oldLockup, uint256 newLockup);
     event LockupRenewed(uint256 newLockupTime);
+    event LockupStarted(uint256 lockupTime);
     event Initialized(address validator, string moniker);
+    event RewardDistributed(uint256 activeReward, uint256 pendingInactiveReward);
+    event PendingInactiveProcessed(uint256 amount);
+    event StakeReactivated(address indexed delegator, uint256 shares, uint256 gAmount);
 
     function initialize(address _validator, string memory _moniker) external payable;
 
@@ -56,6 +60,7 @@ interface IStakeCredit {
     function unlock(address delegator, uint256 shares) external returns (uint256 gAmount);
     function withdraw(address payable delegator, uint256 shares) external returns (uint256);
     function distributeReward(uint64 commissionRate) external payable;
+    function reactivateStake(address delegator, uint256 shares) external returns (uint256 gAmount);
 
     function onNewEpoch() external;
     function forceProcessPendingInactive() external;
