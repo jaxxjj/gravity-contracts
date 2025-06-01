@@ -376,6 +376,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             validatorSetData.totalVotingPower -= info.votingPower;
             info.status = ValidatorStatus.PENDING_INACTIVE;
 
+            // 当移除一个活跃验证者时，需要更新其他活跃验证者的索引
+            _updateAllValidatorIndices();
+
             emit ValidatorStatusChanged(
                 validator,
                 uint8(ValidatorStatus.ACTIVE),
@@ -704,6 +707,27 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // 更新总投票权重
         validatorSetData.totalVotingPower = newTotalVotingPower;
+
+        // 重新计算所有活跃验证者的索引
+        // 这与Aptos的做法一致，确保索引始终反映验证者在activeValidators中的实际位置
+        _updateAllValidatorIndices();
+    }
+
+    /**
+     * @dev 更新所有活跃验证者的索引
+     * 对应Aptos的验证者索引更新逻辑
+     */
+    function _updateAllValidatorIndices() internal {
+        address[] memory active = activeValidators.values();
+
+        for (uint256 i = 0; i < active.length; i++) {
+            address validator = active[i];
+            ValidatorInfo storage info = validatorInfos[validator];
+
+            // 更新索引以反映当前位置
+            info.validatorIndex = i;
+            activeValidatorIndex[validator] = i;
+        }
     }
 
     /**

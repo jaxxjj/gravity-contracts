@@ -5,7 +5,6 @@ import "../System.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/interfaces/IValidatorManager.sol"; // 替换IValidatorRegistry
 import "@src/interfaces/IAccessControl.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@src/access/Protectable.sol";
 import "@src/stake/StakeCredit.sol";
@@ -31,28 +30,10 @@ import "@src/interfaces/IGovToken.sol";
  * 每个验证者拥有独立的StakeCredit合约(对应Aptos StakePool)
  */
 contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
-    using EnumerableSet for EnumerableSet.AddressSet;
-
-    // ======== 状态变量 ========
-
     // ======== 修改器 ========
     modifier validatorExists(address validator) {
         if (!IValidatorManager(VALIDATOR_MANAGER_ADDR).isValidatorExists(validator)) {
             revert Delegation__ValidatorNotRegistered(validator);
-        }
-        _;
-    }
-
-    modifier onlyOperator(address validatorAddress) {
-        if (!IAccessControl(ACCESS_CONTROL_ADDR).isOperator(validatorAddress, msg.sender)) {
-            revert Delegation__NotOperator(msg.sender, validatorAddress);
-        }
-        _;
-    }
-
-    modifier onlyValidatorOwner(address validatorAddress) {
-        if (!IAccessControl(ACCESS_CONTROL_ADDR).isOwner(validatorAddress, msg.sender)) {
-            revert Delegation__NotValidatorOwner(msg.sender, validatorAddress);
         }
         _;
     }
@@ -62,12 +43,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param validator 验证者地址
      * @param delegateVotePower 是否委托投票权
      */
-    function delegate(address validator, bool delegateVotePower)
-        external
-        payable
-        whenNotPaused
-        validatorExists(validator)
-    {
+    function delegate(
+        address validator,
+        bool delegateVotePower
+    ) external payable whenNotPaused validatorExists(validator) {
         uint256 bnbAmount = msg.value;
         if (bnbAmount < IStakeConfig(STAKE_CONFIG_ADDR).minDelegationChange()) {
             revert Delegation__LessThanMinDelegationChange();
@@ -78,7 +57,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         // 获取StakeCredit地址
         address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
 
-        uint256 shares = IStakeCredit(stakeCreditAddress).delegate{value: bnbAmount}(delegator);
+        uint256 shares = IStakeCredit(stakeCreditAddress).delegate{ value: bnbAmount }(delegator);
 
         // 检查投票权增长限制 (对应Aptos EVOTING_POWER_INCREASE_EXCEEDS_LIMIT)
         IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(validator, msg.value);
@@ -96,12 +75,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param validator 验证者地址
      * @param shares 要解除的份额
      */
-    function undelegate(address validator, uint256 shares)
-        external
-        validatorExists(validator)
-        whenNotPaused
-        notInBlackList
-    {
+    function undelegate(
+        address validator,
+        uint256 shares
+    ) external validatorExists(validator) whenNotPaused notInBlackList {
         if (shares == 0) {
             revert Delegation__ZeroShares();
         }
@@ -137,10 +114,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     // 将手续费计算和处理逻辑拆分成独立函数
     function _calculateAndChargeFee(address dstStakeCredit, uint256 amount) internal returns (uint256) {
         uint256 feeRate = IStakeConfig(STAKE_CONFIG_ADDR).redelegateFeeRate();
-        uint256 feeCharge = amount * feeRate / IStakeConfig(STAKE_CONFIG_ADDR).PERCENTAGE_BASE();
+        uint256 feeCharge = (amount * feeRate) / IStakeConfig(STAKE_CONFIG_ADDR).PERCENTAGE_BASE();
 
         if (feeCharge > 0) {
-            (bool success,) = dstStakeCredit.call{value: feeCharge}("");
+            (bool success, ) = dstStakeCredit.call{ value: feeCharge }("");
             if (!success) {
                 revert Delegation__TransferFailed();
             }
@@ -150,14 +127,12 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     }
 
     // 重构后的 redelegate 函数
-    function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower)
-        external
-        whenNotPaused
-        notInBlackList
-        validatorExists(srcValidator)
-        validatorExists(dstValidator)
-        nonReentrant
-    {
+    function redelegate(
+        address srcValidator,
+        address dstValidator,
+        uint256 shares,
+        bool delegateVotePower
+    ) external whenNotPaused notInBlackList validatorExists(srcValidator) validatorExists(dstValidator) nonReentrant {
         // 基本检查
         if (shares == 0) revert Delegation__ZeroShares();
         if (srcValidator == dstValidator) revert Delegation__SameValidator();
@@ -186,7 +161,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         uint256 netAmount = _calculateAndChargeFee(dstStakeCredit, bnbAmount);
 
         // 委托到目标验证者
-        uint256 newShares = IStakeCredit(dstStakeCredit).delegate{value: netAmount}(delegator);
+        uint256 newShares = IStakeCredit(dstStakeCredit).delegate{ value: netAmount }(delegator);
 
         // 检查投票权增长限制
         IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(dstValidator, netAmount);
@@ -199,11 +174,13 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
 
     // 验证目标验证者状态
     function _validateDstValidator(address dstValidator, address delegator) internal view {
-        IValidatorManager.ValidatorStatus dstStatus =
-            IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStatus(dstValidator);
+        IValidatorManager.ValidatorStatus dstStatus = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStatus(
+            dstValidator
+        );
         if (
-            dstStatus != IValidatorManager.ValidatorStatus.ACTIVE
-                && dstStatus != IValidatorManager.ValidatorStatus.PENDING_ACTIVE && delegator != dstValidator
+            dstStatus != IValidatorManager.ValidatorStatus.ACTIVE &&
+            dstStatus != IValidatorManager.ValidatorStatus.PENDING_ACTIVE &&
+            delegator != dstValidator
         ) {
             revert Delegation__OnlySelfDelegationToJailedValidator();
         }
