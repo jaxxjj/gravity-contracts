@@ -21,7 +21,7 @@ contract GovToken is
 {
     /*----------------- constants -----------------*/
     string private constant NAME = "BSC Governance Token";
-    string private constant SYMBOL = "govBNB";
+    string private constant SYMBOL = "govG";
 
     /*----------------- storage -----------------*/
     // validator StakeCredit contract => user => amount
@@ -37,7 +37,7 @@ contract GovToken is
 
     /*----------------- external functions -----------------*/
     /**
-     * @dev Sync the account's govBNB amount to the actual BNB value of the StakingCredit he holds
+     * @dev Sync the account's govG amount to the actual G value of the StakingCredit he holds
      * @param stakeCredit the stakeCredit Token contract
      * @param account the account to sync gov tokens to
      */
@@ -46,7 +46,7 @@ contract GovToken is
     }
 
     /**
-     * @dev Batch sync the account's govBNB amount to the actual BNB value of the StakingCredit he holds
+     * @dev Batch sync the account's govG amount to the actual G value of the StakingCredit he holds
      * @param stakeCredits the stakeCredit Token contracts
      * @param account the account to sync gov tokens to
      */
@@ -58,7 +58,7 @@ contract GovToken is
     }
 
     /**
-     * @dev delegate govBNB votes to delegatee
+     * @dev delegate govG votes to delegatee
      * @param delegator the delegator
      * @param delegatee the delegatee
      */
@@ -86,16 +86,16 @@ contract GovToken is
 
     /*----------------- internal functions -----------------*/
     function _sync(address stakeCredit, address account) internal {
-        uint256 latestBNBAmount = IStakeCredit(stakeCredit).getTotalPooledG();
+        uint256 latestGAmount = IStakeCredit(stakeCredit).getTotalPooledG();
         uint256 _mintedAmount = mintedMap[stakeCredit][account];
 
-        if (_mintedAmount < latestBNBAmount) {
-            uint256 _needMint = latestBNBAmount - _mintedAmount;
-            mintedMap[stakeCredit][account] = latestBNBAmount;
+        if (_mintedAmount < latestGAmount) {
+            uint256 _needMint = latestGAmount - _mintedAmount;
+            mintedMap[stakeCredit][account] = latestGAmount;
             _mint(account, _needMint);
-        } else if (_mintedAmount > latestBNBAmount) {
-            uint256 _needBurn = _mintedAmount - latestBNBAmount;
-            mintedMap[stakeCredit][account] = latestBNBAmount;
+        } else if (_mintedAmount > latestGAmount) {
+            uint256 _needBurn = _mintedAmount - latestGAmount;
+            mintedMap[stakeCredit][account] = latestGAmount;
             _burn(account, _needBurn);
         }
     }
@@ -104,11 +104,10 @@ contract GovToken is
      * @dev Override _update to prevent transfers while allowing mint/burn
      * In v5.x, _update is the core function that handles mint, burn, and transfer
      */
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
         // Allow minting (from == address(0)) and burning (to == address(0))
         if (from != address(0) && to != address(0)) {
             revert TransferNotAllowed();
@@ -123,9 +122,12 @@ contract GovToken is
      * Need to override both variants in v5.x
      */
     function _approve(
-        address /*owner*/,
-        address /*spender*/,
-        uint256 /*value*/,
+        address,
+        /*owner*/
+        address,
+        /*spender*/
+        uint256,
+        /*value*/
         bool /*emitEvent*/
     ) internal pure override {
         revert ApproveNotAllowed();
@@ -135,9 +137,13 @@ contract GovToken is
      * @dev Resolve nonces function conflict between ERC20Permit and ERC20Votes
      * Use ERC20Permit's implementation for permit functionality
      */
-    function nonces(
-        address owner
-    ) public view virtual override(ERC20PermitUpgradeable, NoncesUpgradeable) returns (uint256) {
+    function nonces(address owner)
+        public
+        view
+        virtual
+        override(ERC20PermitUpgradeable, NoncesUpgradeable)
+        returns (uint256)
+    {
         return super.nonces(owner);
     }
 }

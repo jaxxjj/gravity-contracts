@@ -482,11 +482,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         _processAllStakeCreditsNewEpoch();
 
         // 3. 分发奖励 (基于性能和累积的区块奖励)
-        // 3.1 分发基于性能的奖励 (从StakeReward合并)
         _distributeRewards();
-
-        // 3.2 分发累积的区块奖励
-        _distributeValidatorRewards();
 
         // 4. 重新计算验证者集合 (基于最新的质押情况)
         _recalculateValidatorSet(minStakeRequired, currentEpoch);
@@ -1036,92 +1032,40 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /**
-     * @dev 内部方法，实现奖励分发逻辑
-     * 集成自 StakeReward._distributeRewards()
+     * @dev 分发验证者奖励（统一奖励分配逻辑）
      */
     function _distributeRewards() internal {
-        address[] memory validators = activeValidators.values();
-
-        for (uint256 i = 0; i < validators.length; i++) {
-            address validator = validators[i];
-            address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
-
-            if (stakeCreditAddress != address(0)) {
-                uint256 stakeAmount = _getValidatorCurrentEpochVotingPower(validator);
-
-                // 直接使用接口调用，不创建局部变量
-                (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
-                    IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
-
-                if (exists) {
-                    uint64 totalProposals = successfulProposals + failedProposals;
-
-                    // 计算奖励（如果没有提案，使用默认值）
-                    uint256 rewardAmount;
-                    if (totalProposals > 0) {
-                        rewardAmount = IStakeConfig(STAKE_CONFIG_ADDR).calculateRewardsAmount(
-                            stakeAmount, successfulProposals, totalProposals
-                        );
-                    } else {
-                        // 如果没有提案记录，使用100%成功率
-                        rewardAmount = IStakeConfig(STAKE_CONFIG_ADDR).calculateRewardsAmount(stakeAmount, 1, 1);
-                    }
-
-                    if (rewardAmount > 0) {
-                        // 获取验证者的佣金率
-                        uint64 commissionRate = validatorInfos[validator].commission.rate;
-
-                        // 发送奖励到StakeCredit合约
-                        StakeCredit(payable(stakeCreditAddress)).distributeReward{value: rewardAmount}(commissionRate);
-                        emit RewardsDistributed(validator, rewardAmount);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * @dev 获取验证者的当前epoch投票权
-     * 集成自 StakeReward._getValidatorCurrentEpochVotingPower()
-     */
-    function _getValidatorCurrentEpochVotingPower(address validator) internal view returns (uint256) {
-        address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
-        if (stakeCreditAddress == address(0)) {
-            return 0;
-        }
-        return StakeCredit(payable(stakeCreditAddress)).getCurrentEpochVotingPower();
-    }
-
-    /**
-     * @dev 分发累积的区块奖励
-     */
-    function _distributeValidatorRewards() internal {
         if (totalIncoming == 0) return;
 
         address[] memory validators = activeValidators.values();
         uint256 totalWeight = 0;
         uint256[] memory weights = new uint256[](validators.length);
 
-        // 第一步：计算每个验证者的权重（基于性能）
+        // 计算每个验证者的权重（基于性能和质押）
         for (uint256 i = 0; i < validators.length; i++) {
             address validator = validators[i];
+            address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
 
-            // 获取验证者性能数据
-            (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
-                IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
-
-            if (exists && (successfulProposals + failedProposals > 0)) {
-                // 计算性能权重（可根据需要调整公式）
-                uint256 performance = (successfulProposals * 100) / (successfulProposals + failedProposals);
+            if (stakeCreditAddress != address(0)) {
                 uint256 stake = _getValidatorCurrentEpochVotingPower(validator);
 
-                // 权重 = 性能 * 质押量（可以根据需要调整）
-                weights[i] = performance * stake;
-                totalWeight += weights[i];
+                // 获取验证者性能数据
+                (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
+                    IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
+
+                if (exists) {
+                    uint64 totalProposals = successfulProposals + failedProposals;
+
+                    if (totalProposals > 0) {
+                        // 直接用比例计算权重，没有提案的验证者不参与分配
+                        weights[i] = (stake * successfulProposals) / totalProposals;
+                        totalWeight += weights[i];
+                    }
+                }
             }
         }
 
-        // 第二步：根据权重分配奖励
+        // 根据权重分配奖励
         if (totalWeight > 0) {
             for (uint256 i = 0; i < validators.length; i++) {
                 if (weights[i] > 0) {
@@ -1146,6 +1090,18 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // 重置奖励池
         totalIncoming = 0;
+    }
+
+    /**
+     * @dev 获取验证者的当前epoch投票权
+     * 集成自 StakeReward._getValidatorCurrentEpochVotingPower()
+     */
+    function _getValidatorCurrentEpochVotingPower(address validator) internal view returns (uint256) {
+        address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
+        if (stakeCreditAddress == address(0)) {
+            return 0;
+        }
+        return StakeCredit(payable(stakeCreditAddress)).getCurrentEpochVotingPower();
     }
 
     /**

@@ -49,6 +49,8 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
         uint16 max_extra_field_bytes;
         /// @dev 电路支持的base64url编码的JWT头的最大长度
         uint32 max_jwt_header_b64_bytes;
+        /// @dev 验证器合约地址
+        address verifier_address;
     }
 
     /**
@@ -82,7 +84,6 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
     // ======== 事件定义 ========
     event KeylessAccountCreated(address indexed account, string indexed issuer, bytes32 jwkHash);
     event KeylessAccountRecovered(address indexed account, string indexed issuer, bytes32 newJwkHash);
-    event TrainingWheelsUpdated(bool enabled, bytes publicKey);
     event VerifierContractUpdated(address newVerifier);
     event ConfigurationUpdated(bytes32 configHash);
     event OverrideAudAdded(string value);
@@ -110,15 +111,11 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
     /**
      * @dev 初始化函数
      * @param _config 初始配置
-     * @param _verifierAddress Groth16验证器合约地址
      */
-    function initialize(Configuration calldata _config, address _verifierAddress) external initializer {
+    function initialize(Configuration calldata _config) external initializer {
         configuration = _config;
         hasPendingConfigUpdate = false;
-        verifier = Verifier(_verifierAddress);
-
-        emit ConfigurationUpdated(keccak256(abi.encode(_config)));
-        emit VerifierContractUpdated(_verifierAddress);
+        verifier = Verifier(_config.verifier_address);
     }
 
     // ======== 参数管理 ========
@@ -127,115 +124,104 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      * @dev 统一参数更新函数
      */
     function updateParam(string calldata key, bytes calldata value) external override onlyGov {
+        if (!hasPendingConfigUpdate) {
+            pendingConfiguration = configuration;
+        }
         if (Strings.equal(key, "maxSignaturesPerTxn")) {
             uint16 newValue = abi.decode(value, (uint16));
-            uint16 oldValue = configuration.max_signatures_per_txn;
-            configuration.max_signatures_per_txn = newValue;
+            uint16 oldValue = pendingConfiguration.max_signatures_per_txn;
+            pendingConfiguration.max_signatures_per_txn = newValue;
             emit ConfigParamUpdated("maxSignaturesPerTxn", oldValue, newValue);
         } else if (Strings.equal(key, "maxExpHorizonSecs")) {
             uint64 newValue = abi.decode(value, (uint64));
-            uint64 oldValue = configuration.max_exp_horizon_secs;
-            configuration.max_exp_horizon_secs = newValue;
+            uint64 oldValue = pendingConfiguration.max_exp_horizon_secs;
+            pendingConfiguration.max_exp_horizon_secs = newValue;
             emit ConfigParamUpdated("maxExpHorizonSecs", oldValue, newValue);
         } else if (Strings.equal(key, "maxCommitedEpkBytes")) {
             uint16 newValue = abi.decode(value, (uint16));
-            uint16 oldValue = configuration.max_commited_epk_bytes;
-            configuration.max_commited_epk_bytes = newValue;
+            uint16 oldValue = pendingConfiguration.max_commited_epk_bytes;
+            pendingConfiguration.max_commited_epk_bytes = newValue;
             emit ConfigParamUpdated("maxCommitedEpkBytes", oldValue, newValue);
         } else if (Strings.equal(key, "maxIssValBytes")) {
             uint16 newValue = abi.decode(value, (uint16));
-            uint16 oldValue = configuration.max_iss_val_bytes;
-            configuration.max_iss_val_bytes = newValue;
+            uint16 oldValue = pendingConfiguration.max_iss_val_bytes;
+            pendingConfiguration.max_iss_val_bytes = newValue;
             emit ConfigParamUpdated("maxIssValBytes", oldValue, newValue);
         } else if (Strings.equal(key, "maxExtraFieldBytes")) {
             uint16 newValue = abi.decode(value, (uint16));
-            uint16 oldValue = configuration.max_extra_field_bytes;
-            configuration.max_extra_field_bytes = newValue;
+            uint16 oldValue = pendingConfiguration.max_extra_field_bytes;
+            pendingConfiguration.max_extra_field_bytes = newValue;
             emit ConfigParamUpdated("maxExtraFieldBytes", oldValue, newValue);
         } else if (Strings.equal(key, "maxJwtHeaderB64Bytes")) {
             uint32 newValue = abi.decode(value, (uint32));
-            uint32 oldValue = configuration.max_jwt_header_b64_bytes;
-            configuration.max_jwt_header_b64_bytes = newValue;
+            uint32 oldValue = pendingConfiguration.max_jwt_header_b64_bytes;
+            pendingConfiguration.max_jwt_header_b64_bytes = newValue;
             emit ConfigParamUpdated("maxJwtHeaderB64Bytes", oldValue, newValue);
+        } else if (Strings.equal(key, "verifier")) {
+            address newValue = abi.decode(value, (address));
+            address oldValue = pendingConfiguration.verifier_address;
+            pendingConfiguration.verifier_address = newValue;
+            emit ConfigParamUpdated("verifier", uint256(uint160(oldValue)), uint256(uint160(newValue)));
+        } else if (Strings.equal(key, "trainingWheels")) {
+            bytes memory newPublicKey = abi.decode(value, (bytes));
+            bytes memory oldPublicKey = pendingConfiguration.training_wheels_pubkey;
+
+            // 验证长度 - 要么为0(禁用)，要么为32(启用)
+            if (newPublicKey.length != 0 && newPublicKey.length != 32) {
+                revert InvalidTrainingWheelsPK();
+            }
+
+            pendingConfiguration.training_wheels_pubkey = newPublicKey;
+
+            // 使用哈希值在ConfigParamUpdated事件中表示bytes变化
+            emit ConfigParamUpdated(
+                "trainingWheels", uint256(keccak256(oldPublicKey)), uint256(keccak256(newPublicKey))
+            );
+        } else if (Strings.equal(key, "addOverrideAud")) {
+            string memory newAud = abi.decode(value, (string));
+
+            // 检查是否已存在
+            bool exists = false;
+            for (uint256 i = 0; i < pendingConfiguration.override_aud_vals.length; i++) {
+                if (Strings.equal(pendingConfiguration.override_aud_vals[i], newAud)) {
+                    exists = true;
+                    break;
+                }
+            }
+
+            // 如果不存在则添加
+            if (!exists) {
+                pendingConfiguration.override_aud_vals.push(newAud);
+                emit ConfigParamUpdated(
+                    "addOverrideAud",
+                    0, // 没有真正的"旧值"
+                    uint256(keccak256(bytes(newAud)))
+                );
+            }
+        } else if (Strings.equal(key, "removeOverrideAud")) {
+            string memory audToRemove = abi.decode(value, (string));
+            uint256 length = pendingConfiguration.override_aud_vals.length;
+
+            for (uint256 i = 0; i < length; i++) {
+                if (Strings.equal(pendingConfiguration.override_aud_vals[i], audToRemove)) {
+                    // 将最后一个元素移到当前位置，然后弹出最后一个元素
+                    if (i < length - 1) {
+                        pendingConfiguration.override_aud_vals[i] = pendingConfiguration.override_aud_vals[length - 1];
+                    }
+                    pendingConfiguration.override_aud_vals.pop();
+
+                    emit ConfigParamUpdated(
+                        "removeOverrideAud",
+                        uint256(keccak256(bytes(audToRemove))),
+                        0 // 没有真正的"新值"
+                    );
+                    break;
+                }
+            }
         } else {
             revert KeylessAccount__ParameterNotFound(key);
         }
-
-        emit ParamChange(key, value);
-    }
-
-    // ======== 验证器管理 ========
-
-    /**
-     * @dev 更新验证器合约
-     */
-    function updateVerifier(address _verifierAddress) external onlyGov {
-        verifier = Verifier(_verifierAddress);
-        emit VerifierContractUpdated(_verifierAddress);
-    }
-
-    // ======== 配置管理 ========
-
-    /**
-     * @dev 更新系统配置，只能通过治理调用
-     */
-    function updateConfiguration(Configuration calldata newConfig) external onlyGov {
-        configuration = newConfig;
-        emit ConfigurationUpdated(keccak256(abi.encode(newConfig)));
-    }
-
-    /**
-     * @dev 为下一个纪元设置配置更新
-     */
-    function setConfigurationForNextEpoch(Configuration calldata newConfig) external onlyGov {
-        pendingConfiguration = newConfig;
         hasPendingConfigUpdate = true;
-    }
-
-    /**
-     * @dev 更新训练轮公钥
-     */
-    function updateTrainingWheels(bool enabled, bytes calldata publicKey) external onlyGov {
-        if (enabled) {
-            if (publicKey.length != 32) {
-                revert InvalidTrainingWheelsPK();
-            }
-            configuration.training_wheels_pubkey = publicKey;
-        } else {
-            delete configuration.training_wheels_pubkey;
-        }
-        emit TrainingWheelsUpdated(enabled, publicKey);
-    }
-
-    /**
-     * @dev 添加覆盖aud值
-     */
-    function addOverrideAud(string calldata aud) external onlyGov {
-        for (uint256 i = 0; i < configuration.override_aud_vals.length; i++) {
-            if (Strings.equal(configuration.override_aud_vals[i], aud)) {
-                return; // 已存在，直接返回
-            }
-        }
-        configuration.override_aud_vals.push(aud);
-        emit OverrideAudAdded(aud);
-    }
-
-    /**
-     * @dev 移除覆盖aud值
-     */
-    function removeOverrideAud(string calldata aud) external onlyGov {
-        uint256 length = configuration.override_aud_vals.length;
-        for (uint256 i = 0; i < length; i++) {
-            if (Strings.equal(configuration.override_aud_vals[i], aud)) {
-                // 将最后一个元素移到当前位置，然后弹出最后一个元素
-                if (i < length - 1) {
-                    configuration.override_aud_vals[i] = configuration.override_aud_vals[length - 1];
-                }
-                configuration.override_aud_vals.pop();
-                emit OverrideAudRemoved(aud);
-                break;
-            }
-        }
     }
 
     // ======== 账户管理 ========
@@ -401,11 +387,18 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
      */
     function onNewEpoch() external override returns (bool) {
         if (hasPendingConfigUpdate) {
+            // 更新配置
             configuration = pendingConfiguration;
+
+            // 更新验证器实例
+            if (address(verifier) != configuration.verifier_address) {
+                verifier = Verifier(configuration.verifier_address);
+                emit VerifierContractUpdated(configuration.verifier_address);
+            }
+
             hasPendingConfigUpdate = false;
             emit ConfigurationUpdated(keccak256(abi.encode(configuration)));
         }
-
         return true;
     }
 

@@ -39,11 +39,11 @@ contract GravityGovernor is
     uint256 private constant BLOCK_INTERVAL = 3 seconds;
     uint48 private constant INIT_VOTING_DELAY = uint48(0 hours / BLOCK_INTERVAL);
     uint32 private constant INIT_VOTING_PERIOD = uint32(7 days / BLOCK_INTERVAL);
-    uint256 private constant INIT_PROPOSAL_THRESHOLD = 200 ether; //  = 200 BNB
+    uint256 private constant INIT_PROPOSAL_THRESHOLD = 2_000_000 ether; //  = 2_000_000 G
     uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
 
-    // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18
-    uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
+    // starting propose requires totalSupply of GovG >= 1_000_000_000 * 1e18
+    uint256 private constant PROPOSE_START_GOVG_SUPPLY_THRESHOLD = 1_000_000_000 ether;
     // ensures there is a minimum voting period (1 days) after quorum is reached
     uint48 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint48(1 days / BLOCK_INTERVAL);
 
@@ -215,7 +215,7 @@ contract GravityGovernor is
     /*----------------- internal functions -----------------*/
     function _checkAndStartPropose() internal {
         if (!proposeStarted) {
-            if (IGovToken(GOV_TOKEN_ADDR).totalSupply() < PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD) {
+            if (IGovToken(GOV_TOKEN_ADDR).totalSupply() < PROPOSE_START_GOVG_SUPPLY_THRESHOLD) {
                 revert TotalSupplyNotEnough();
             }
             proposeStarted = true;

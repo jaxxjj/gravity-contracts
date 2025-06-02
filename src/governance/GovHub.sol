@@ -10,7 +10,6 @@ contract GovHub is System {
 
     event failReasonWithStr(string message);
     event failReasonWithBytes(bytes message);
-    event paramChange(string key, bytes value); // @dev deprecated
 
     struct ParamChangePackage {
         string key;

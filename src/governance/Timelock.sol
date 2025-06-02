@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@src/System.sol";
 import "@src/lib/Bytes.sol";
 
-contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
+contract Timelock is System, Initializable, TimelockControllerUpgradeable {
     using Bytes for bytes;
 
     /*----------------- constants -----------------*/
