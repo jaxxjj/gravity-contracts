@@ -15,6 +15,13 @@ interface IValidatorManager {
         INACTIVE
     }
 
+    // 验证者角色结构
+    struct ValidatorRoles {
+        address operator; // 验证者操作员，负责日常操作
+        address delegatedVoter; // 委托投票者，负责治理投票
+        address commissionBeneficiary; // 佣金受益人，接收验证者佣金
+    }
+
     // 新增：Commission结构体
     struct Commission {
         uint64 rate; // the commission rate charged to delegators(10000 is 100%)
@@ -40,6 +47,8 @@ interface IValidatorManager {
         uint256 validatorIndex;
         uint256 lastEpochActive;
         uint256 updateTime; // 新增：最后一次更新时间
+        // 新增：角色信息（来自AccessControl）
+        ValidatorRoles roles;
     }
 
     // 在接口中定义ValidatorSetData结构
@@ -60,12 +69,12 @@ interface IValidatorManager {
         string moniker;
         address initialOperator;
         address initialVoter;
+        address initialBeneficiary; // 新增：初始佣金受益人
     }
 
     /// 验证者注册相关事件
     event ValidatorRegistered(
         address indexed validator,
-        address indexed owner,
         address indexed operator,
         bytes consensusPublicKey,
         string moniker
@@ -74,13 +83,20 @@ interface IValidatorManager {
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);
     event ValidatorInfoUpdated(address indexed validator, string field);
     event RewardsCollected(uint256 amount, uint256 totalIncoming);
-    event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate); // 新增：佣金率更新事件
+    event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
+
+    // 角色管理事件
+    event OperatorUpdated(address indexed validator, address indexed oldOperator, address indexed newOperator);
+    event DelegatedVoterUpdated(address indexed validator, address indexed oldVoter, address indexed newVoter);
+    event CommissionBeneficiaryUpdated(
+        address indexed validator,
+        address indexed oldBeneficiary,
+        address indexed newBeneficiary
+    );
 
     /// 验证者集合管理事件（借鉴Aptos）
     event ValidatorJoinRequested(address indexed validator, uint64 votingPower, uint64 epoch);
-
     event ValidatorLeaveRequested(address indexed validator, uint64 epoch);
-
     event ValidatorStatusChanged(address indexed validator, uint8 oldStatus, uint8 newStatus, uint64 epoch);
 
     /// Epoch转换事件
@@ -101,6 +117,9 @@ interface IValidatorManager {
     error UnauthorizedCaller(address caller, address validator);
     error InvalidCommission(); // 新增：无效的佣金设置错误
     error UpdateTooFrequently(); // 新增：更新过于频繁错误
+    error InvalidAddress(address addr);
+    error AddressAlreadyInUse(address addr, address currentValidator);
+    error NotValidator(address caller, address validator);
 
     // BLS验证相关错误
     error InvalidVoteAddress();
@@ -185,6 +204,50 @@ interface IValidatorManager {
      */
     function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external;
 
+    // ======== 角色管理功能 (从AccessControl移过来) ========
+
+    /**
+     * @dev 更新验证者操作员
+     */
+    function updateOperator(address validator, address newOperator) external;
+
+    /**
+     * @dev 更新委托投票者
+     */
+    function updateDelegatedVoter(address validator, address newVoter) external;
+
+    /**
+     * @dev 更新佣金受益人
+     */
+    function updateCommissionBeneficiary(address validator, address newBeneficiary) external;
+
+    // ======== 角色查询功能 ========
+
+    /**
+     * @dev 检查是否为验证者本身
+     */
+    function isValidator(address validator, address account) external view returns (bool);
+
+    /**
+     * @dev 检查是否为验证者操作员
+     */
+    function isOperator(address validator, address account) external view returns (bool);
+
+    /**
+     * @dev 检查是否为验证者的委托投票者
+     */
+    function isDelegatedVoter(address validator, address account) external view returns (bool);
+
+    /**
+     * @dev 检查是否有操作员权限
+     */
+    function hasOperatorPermission(address validator, address account) external view returns (bool);
+
+    /**
+     * @dev 检查是否有投票权限
+     */
+    function hasVotingPermission(address validator, address account) external view returns (bool);
+
     /**
      * @dev 获取验证者信息
      */
@@ -256,4 +319,29 @@ interface IValidatorManager {
      * @dev 区块生产者存入区块奖励
      */
     function deposit() external payable;
+
+    /**
+     * @dev 获取验证者的操作员
+     */
+    function getOperator(address validator) external view returns (address);
+
+    /**
+     * @dev 获取验证者的委托投票者
+     */
+    function getDelegatedVoter(address validator) external view returns (address);
+
+    /**
+     * @dev 获取验证者的佣金受益人
+     */
+    function getCommissionBeneficiary(address validator) external view returns (address);
+
+    /**
+     * @dev 获取反向映射 - 操作员对应的验证者
+     */
+    function operatorToValidator(address operator) external view returns (address);
+
+    /**
+     * @dev 获取反向映射 - 投票者对应的验证者
+     */
+    function voterToValidator(address voter) external view returns (address);
 }

@@ -5,7 +5,6 @@ import "@openzeppelin-upgrades/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin-upgrades/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 import "@src/interfaces/IStakeConfig.sol";
-import "@src/interfaces/IAccessControl.sol";
 import "@src/System.sol";
 import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IStakeCredit.sol";
@@ -393,7 +392,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             uint256 commissionShares = totalSupply() > 0 ? (commission * totalSupply()) / totalPooled : commission;
 
             // 获取佣金受益人地址
-            address beneficiary = IAccessControl(ACCESS_CONTROL_ADDR).getCommissionBeneficiary(validator);
+            address beneficiary = IValidatorManager(VALIDATOR_MANAGER_ADDR).getCommissionBeneficiary(validator);
 
             _mint(beneficiary, commissionShares);
 
@@ -626,18 +625,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
     function _approve(address, address, uint256, bool) internal virtual override {
         revert ApproveNotAllowed();
-    }
-
-    function getOperator() public view returns (address) {
-        return IAccessControl(ACCESS_CONTROL_ADDR).getOperator(validator);
-    }
-
-    function getDelegatedVoter() public view returns (address) {
-        return IAccessControl(ACCESS_CONTROL_ADDR).getDelegatedVoter(validator);
-    }
-
-    function getCommissionBeneficiary() public view returns (address) {
-        return IAccessControl(ACCESS_CONTROL_ADDR).getCommissionBeneficiary(validator);
     }
 
     /**

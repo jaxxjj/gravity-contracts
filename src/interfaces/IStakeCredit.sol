@@ -90,8 +90,4 @@ interface IStakeCredit {
             uint256 _totalShares,
             bool _isLocked
         );
-
-    function getOperator() external view returns (address);
-    function getDelegatedVoter() external view returns (address);
-    function getCommissionBeneficiary() external view returns (address);
 }

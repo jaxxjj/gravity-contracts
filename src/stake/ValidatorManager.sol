@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import "../System.sol";
-import "@src/interfaces/IAccessControl.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -62,6 +61,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     mapping(address => uint256) private pendingActiveIndex;
     mapping(address => uint256) private pendingInactiveIndex;
 
+    // 从AccessControl移过来的映射
+    mapping(address => address) public operatorToValidator; // 操作员 => 验证者
+    mapping(address => address) public voterToValidator; // 投票者 => 验证者
+
     /// 初始化标志
     bool private initialized;
 
@@ -87,16 +90,27 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         _;
     }
 
+    modifier onlyValidatorSelf(address validator) {
+        if (msg.sender != validator) {
+            revert NotValidator(msg.sender, validator);
+        }
+        _;
+    }
+
+    modifier validAddress(address addr) {
+        if (addr == address(0)) {
+            revert InvalidAddress(address(0));
+        }
+        _;
+    }
+
     modifier onlyValidatorOperator(address validator) {
-        if (!IAccessControl(ACCESS_CONTROL_ADDR).hasOperatorPermission(validator, msg.sender)) {
+        if (!hasOperatorPermission(validator, msg.sender)) {
             revert UnauthorizedCaller(msg.sender, validator);
         }
         _;
     }
 
-    /**
-     * @dev 检查是否允许验证者集合变更
-     */
     modifier whenValidatorSetChangeAllowed() {
         if (!IStakeConfig(STAKE_CONFIG_ADDR).allowValidatorSetChange()) {
             revert ValidatorSetChangeDisabled();
@@ -106,9 +120,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     /**
      * @dev 初始化验证者集合（对应Aptos的initialize函数）
-     * @param initialValidators 初始验证者地址
-     * @param initialVotingPowers 初始投票权重
-     * @param initialMonikers 初始验证者名称
      */
     function initialize(
         address[] calldata initialValidators,
@@ -169,7 +180,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 votingPower: votingPower,
                 validatorIndex: i,
                 lastEpochActive: 0,
-                updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds() // 添加更新时间字段
+                updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(), // 添加更新时间字段
+                roles: ValidatorRoles({
+                    operator: validator, // 默认自己是operator
+                    delegatedVoter: validator, // 默认自己是voter
+                    commissionBeneficiary: validator // 默认自己是beneficiary
+                })
             });
 
             // 添加到活跃验证者集合
@@ -178,6 +194,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // 更新总投票权重
             validatorSetData.totalVotingPower += votingPower;
+
+            // 设置反向映射
+            operatorToValidator[validator] = validator;
+            voterToValidator[validator] = validator;
         }
     }
 
@@ -187,7 +207,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function registerValidator(
         ValidatorRegistrationParams calldata params
     ) external payable nonReentrant whenNotPaused {
-        address validator = msg.sender;
+        address validator = msg.sender; // validator就是消息发送者
 
         if (validatorInfos[validator].registered) {
             revert ValidatorAlreadyExists(validator);
@@ -238,8 +258,18 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // 部署StakeCredit合约
         address stakeCreditAddress = _deployStakeCredit(validator, params.moniker);
 
-        // 在AccessControl中注册角色映射
-        _registerRoles(validator, params.initialOperator, params.initialVoter, validator);
+        // 设置佣金受益人，如果未指定则默认为validator本身
+        address beneficiary = params.initialBeneficiary == address(0) ? validator : params.initialBeneficiary;
+
+        // 验证地址有效性
+        if (params.initialOperator == address(0) || params.initialVoter == address(0)) {
+            revert InvalidAddress(address(0));
+        }
+
+        // 检查地址冲突
+        if (operatorToValidator[params.initialOperator] != address(0)) {
+            revert AddressAlreadyInUse(params.initialOperator, operatorToValidator[params.initialOperator]);
+        }
 
         // 存储验证者信息
         validatorInfos[validator] = ValidatorInfo({
@@ -256,8 +286,17 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             votingPower: 0,
             validatorIndex: 0,
             lastEpochActive: 0,
-            updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds() // 添加更新时间字段
+            updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
+            roles: ValidatorRoles({
+                operator: params.initialOperator,
+                delegatedVoter: params.initialVoter,
+                commissionBeneficiary: beneficiary
+            })
         });
+
+        // 设置反向映射
+        operatorToValidator[params.initialOperator] = validator;
+        voterToValidator[params.initialVoter] = validator;
 
         // 注册投票地址映射
         if (params.voteAddress.length > 0) {
@@ -275,7 +314,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // 初始质押
         StakeCredit(payable(stakeCreditAddress)).delegate{ value: msg.value }(validator);
 
-        emit ValidatorRegistered(validator, msg.sender, validator, params.consensusPublicKey, params.moniker);
+        emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
         emit StakeCreditDeployed(validator, stakeCreditAddress);
     }
 
@@ -375,9 +414,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             // 更新总投票权重
             validatorSetData.totalVotingPower -= info.votingPower;
             info.status = ValidatorStatus.PENDING_INACTIVE;
-
-            // 当移除一个活跃验证者时，需要更新其他活跃验证者的索引
-            _updateAllValidatorIndices();
 
             emit ValidatorStatusChanged(
                 validator,
@@ -707,27 +743,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // 更新总投票权重
         validatorSetData.totalVotingPower = newTotalVotingPower;
-
-        // 重新计算所有活跃验证者的索引
-        // 这与Aptos的做法一致，确保索引始终反映验证者在activeValidators中的实际位置
-        _updateAllValidatorIndices();
-    }
-
-    /**
-     * @dev 更新所有活跃验证者的索引
-     * 对应Aptos的验证者索引更新逻辑
-     */
-    function _updateAllValidatorIndices() internal {
-        address[] memory active = activeValidators.values();
-
-        for (uint256 i = 0; i < active.length; i++) {
-            address validator = active[i];
-            ValidatorInfo storage info = validatorInfos[validator];
-
-            // 更新索引以反映当前位置
-            info.validatorIndex = i;
-            activeValidatorIndex[validator] = i;
-        }
     }
 
     /**
@@ -739,24 +754,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         emit StakeCreditDeployed(validator, creditProxy);
 
         return creditProxy;
-    }
-
-    /**
-     * @dev 注册验证者角色
-     */
-    function _registerRoles(
-        address validator,
-        address initialOperator,
-        address initialVoter,
-        address initialBeneficiary
-    ) internal {
-        IAccessControl(ACCESS_CONTROL_ADDR).registerValidatorRoles(
-            validator,
-            msg.sender,
-            initialOperator,
-            initialVoter,
-            initialBeneficiary
-        );
     }
 
     /**
@@ -985,7 +982,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             votingPower: 0,
             validatorIndex: 0,
             lastEpochActive: 0,
-            updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds() // 添加更新时间字段
+            updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
+            roles: ValidatorRoles({
+                operator: validator, // Default to self
+                delegatedVoter: validator, // Default to self
+                commissionBeneficiary: validator // Default to self
+            })
         });
     }
 
@@ -1182,5 +1184,123 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      */
     function checkMonikerFormat(string calldata moniker) external pure returns (bool) {
         return _checkMoniker(moniker);
+    }
+
+    /**
+     * @dev 更新验证者操作员 - 只有validator本身可以更改operator
+     */
+    function updateOperator(
+        address validator,
+        address newOperator
+    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newOperator) {
+        // 检查新操作员是否已被其他验证者使用
+        if (operatorToValidator[newOperator] != address(0) && operatorToValidator[newOperator] != validator) {
+            revert AddressAlreadyInUse(newOperator, operatorToValidator[newOperator]);
+        }
+
+        address oldOperator = validatorInfos[validator].roles.operator;
+
+        // 更新反向映射
+        if (oldOperator != address(0)) {
+            delete operatorToValidator[oldOperator];
+        }
+        operatorToValidator[newOperator] = validator;
+
+        validatorInfos[validator].roles.operator = newOperator;
+
+        emit OperatorUpdated(validator, oldOperator, newOperator);
+    }
+
+    /**
+     * @dev 更新委托投票者 - 只有validator本身可以更改voter
+     */
+    function updateDelegatedVoter(
+        address validator,
+        address newVoter
+    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newVoter) {
+        address oldVoter = validatorInfos[validator].roles.delegatedVoter;
+
+        // 更新反向映射
+        if (oldVoter != address(0) && voterToValidator[oldVoter] == validator) {
+            delete voterToValidator[oldVoter];
+        }
+        voterToValidator[newVoter] = validator;
+
+        validatorInfos[validator].roles.delegatedVoter = newVoter;
+
+        emit DelegatedVoterUpdated(validator, oldVoter, newVoter);
+    }
+
+    /**
+     * @dev 更新佣金受益人 - 只有validator本身可以更改佣金受益人
+     */
+    function updateCommissionBeneficiary(
+        address validator,
+        address newBeneficiary
+    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newBeneficiary) {
+        address oldBeneficiary = validatorInfos[validator].roles.commissionBeneficiary;
+        validatorInfos[validator].roles.commissionBeneficiary = newBeneficiary;
+
+        emit CommissionBeneficiaryUpdated(validator, oldBeneficiary, newBeneficiary);
+    }
+
+    /**
+     * @dev 检查是否为验证者本身
+     */
+    function isValidator(address validator, address account) public view returns (bool) {
+        return validator == account && validatorInfos[validator].registered;
+    }
+
+    /**
+     * @dev 检查是否为验证者操作员
+     */
+    function isOperator(address validator, address account) public view returns (bool) {
+        return validatorInfos[validator].registered && validatorInfos[validator].roles.operator == account;
+    }
+
+    /**
+     * @dev 检查是否为验证者的委托投票者
+     */
+    function isDelegatedVoter(address validator, address account) public view returns (bool) {
+        return validatorInfos[validator].registered && validatorInfos[validator].roles.delegatedVoter == account;
+    }
+
+    /**
+     * @dev 综合权限检查：是否可以执行操作员权限操作
+     * 包括：validator本身, operator
+     */
+    function hasOperatorPermission(address validator, address account) public view returns (bool) {
+        if (!validatorInfos[validator].registered) return false;
+
+        ValidatorRoles storage roles = validatorInfos[validator].roles;
+        return account == validator || account == roles.operator;
+    }
+
+    /**
+     * @dev 检查是否有投票权限
+     */
+    function hasVotingPermission(address validator, address account) public view returns (bool) {
+        return isDelegatedVoter(validator, account);
+    }
+
+    /**
+     * @dev 获取验证者的操作员
+     */
+    function getOperator(address validator) external view validatorExists(validator) returns (address) {
+        return validatorInfos[validator].roles.operator;
+    }
+
+    /**
+     * @dev 获取验证者委托投票者
+     */
+    function getDelegatedVoter(address validator) external view validatorExists(validator) returns (address) {
+        return validatorInfos[validator].roles.delegatedVoter;
+    }
+
+    /**
+     * @dev 获取佣金受益人
+     */
+    function getCommissionBeneficiary(address validator) external view validatorExists(validator) returns (address) {
+        return validatorInfos[validator].roles.commissionBeneficiary;
     }
 }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.17;
 import "../System.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/interfaces/IValidatorManager.sol"; // 替换IValidatorRegistry
-import "@src/interfaces/IAccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@src/access/Protectable.sol";
 import "@src/stake/StakeCredit.sol";
