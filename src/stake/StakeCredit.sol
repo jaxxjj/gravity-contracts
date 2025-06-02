@@ -55,6 +55,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     // ======== 佣金受益人信息 ========
     address public commissionBeneficiary;
 
+    bool public hasUnlockRequest;
+    uint256 public unlockRequestedAt;
+
     constructor() {
         _disableInitializers();
     }
@@ -92,7 +95,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         _initializeStakeStates();
 
         // 设置初始锁定期并处理初始质押
-        _initializeLockupAndStake(_validator, msg.value);
+        _initializeLockupAndStake(msg.value);
 
         // 设置佣金受益人
         commissionBeneficiary = _beneficiary;
@@ -123,7 +126,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev 初始化锁定期和初始质押
      */
-    function _initializeLockupAndStake(address _validator, uint256 _initialAmount) private {
+    function _initializeLockupAndStake(uint256 _initialAmount) private {
         // 初始化时不设置锁定期，等验证者加入验证者集合时再设置
         lockedUntilSecs = 0;
 
@@ -256,6 +259,13 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
         // 移到pending_inactive状态
         pendingInactive += gAmount;
+
+        // 标记解锁请求
+        if (!hasUnlockRequest) {
+            hasUnlockRequest = true;
+            unlockRequestedAt = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+            emit UnlockRequestCreated(unlockRequestedAt);
+        }
     }
 
     /**
@@ -443,6 +453,17 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         uint256 oldTotal = oldActive + oldInactive + oldPendingActive + oldPendingInactive + pendingRewards;
         if (newTotal != oldTotal) revert StateTransitionError();
 
+        // 在onNewEpoch中处理完解锁请求后发出事件
+        if (hasUnlockRequest && pendingInactive > 0) {
+            uint256 amountProcessed = pendingInactive;
+            inactive += pendingInactive;
+            pendingInactive = 0;
+            hasUnlockRequest = false;
+            unlockRequestedAt = 0;
+
+            emit UnlockRequestProcessed(amountProcessed);
+        }
+
         emit EpochTransitioned(
             oldActive,
             oldInactive,
@@ -516,36 +537,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         if (pendingInactive > 0) {
             inactive += pendingInactive;
             pendingInactive = 0;
-        }
-    }
-
-    /**
-     * @dev 延长锁定期 (对应Aptos increase_lockup)
-     * @param newLockUntil 新的锁定期结束时间
-     */
-    function increaseLockup(uint256 newLockUntil) external onlyStakeHub {
-        if (newLockUntil <= lockedUntilSecs) revert LockupNotExpired();
-        uint256 oldLockup = lockedUntilSecs;
-        lockedUntilSecs = newLockUntil;
-    }
-
-    /**
-     * @dev 更新验证者锁定期
-     */
-    function renewLockup() external onlyStakeHub {
-        if (lockedUntilSecs == 0) {
-            // 如果还没有锁定期，调用激活函数
-            if (_isCurrentEpochValidator()) {
-                lockedUntilSecs =
-                    ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
-                emit LockupStarted(lockedUntilSecs);
-            }
-        } else {
-            // 已有锁定期，续期
-            uint256 newLockupTime =
-                ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
-            lockedUntilSecs = newLockupTime;
-            emit LockupRenewed(newLockupTime);
         }
     }
 
@@ -702,5 +693,14 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         commissionBeneficiary = newBeneficiary;
 
         emit BeneficiaryUpdated(validator, oldBeneficiary, newBeneficiary);
+    }
+
+    /**
+     * @dev 返回当前解锁请求的状态
+     * @return hasRequest 是否有未处理的解锁请求
+     * @return requestedAt 解锁请求的时间戳
+     */
+    function getUnlockRequestStatus() external view returns (bool hasRequest, uint256 requestedAt) {
+        return (hasUnlockRequest, unlockRequestedAt);
     }
 }
