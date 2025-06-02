@@ -8,11 +8,11 @@ pragma solidity ^0.8.17;
 interface IValidatorManager {
     // 统一的验证者状态枚举
     enum ValidatorStatus {
-        UNDEFINED,
-        PENDING_ACTIVE,
-        ACTIVE,
-        PENDING_INACTIVE,
-        INACTIVE
+        PENDING_ACTIVE, // 0
+        ACTIVE, // 1
+        PENDING_INACTIVE, // 2
+        INACTIVE // 3
+
     }
 
     // 验证者角色结构
@@ -126,6 +126,7 @@ interface IValidatorManager {
     error LastValidatorCannotLeave();
     error VotingPowerIncreaseExceedsLimit();
     error ValidatorSetChangeDisabled();
+    error NewOperatorIsValidatorSelf();
 
     /**
      * @dev 初始化验证者集合

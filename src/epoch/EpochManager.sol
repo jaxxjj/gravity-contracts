@@ -29,7 +29,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
     uint256 public lastEpochTransitionTime;
 
     modifier onlyAuthorizedCallers() {
-        if (msg.sender != SYSTEM_CALLER && msg.sender != STAKE_HUB_ADDR && msg.sender != BLOCK_ADDR) {
+        if (msg.sender != SYSTEM_CALLER && msg.sender != BLOCK_ADDR) {
             revert NotAuthorized();
         }
         _;
@@ -76,7 +76,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
 
     /**
      * @dev 处理epoch转换，通知所有系统模块
-     * 只能由系统账户（0x0）调用，通过系统交易触发
+     * 只能由系统账户（0x0）或者block模块调用
      */
     function triggerEpochTransition() external onlyAuthorizedCallers {
         // 检查是否已经过去足够的时间

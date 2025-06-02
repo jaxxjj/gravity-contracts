@@ -1211,8 +1211,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         validAddress(newOperator)
     {
         // 检查新操作员是否已被其他验证者使用
-        if (operatorToValidator[newOperator] != address(0) && operatorToValidator[newOperator] != validator) {
+        if (operatorToValidator[newOperator] != address(0)) {
             revert AddressAlreadyInUse(newOperator, operatorToValidator[newOperator]);
+        }
+
+        if (newOperator == validator) {
+            revert NewOperatorIsValidatorSelf();
         }
 
         address oldOperator = validatorInfos[validator].operator;
