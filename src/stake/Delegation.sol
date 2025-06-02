@@ -55,7 +55,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         uint256 shares = IStakeCredit(stakeCreditAddress).delegate{value: gAmount}(delegator);
 
         // 检查投票权增长限制 (对应Aptos EVOTING_POWER_INCREASE_EXCEEDS_LIMIT)
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(validator, msg.value);
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(msg.value);
 
         emit Delegated(validator, delegator, shares, gAmount);
 
@@ -160,7 +160,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         uint256 newShares = IStakeCredit(dstStakeCredit).delegate{value: netAmount}(delegator);
 
         // 检查投票权增长限制
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(dstValidator, netAmount);
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(netAmount);
 
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, netAmount, gAmount - netAmount);
 

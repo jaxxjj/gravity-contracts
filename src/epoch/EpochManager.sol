@@ -96,7 +96,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
         lastEpochTransitionTime = transitionTime;
 
         // 通知所有系统合约（使用固定地址）
-        _notifySystemModules(newEpoch, transitionTime);
+        _notifySystemModules();
 
         // 触发事件
         emit EpochTransitioned(newEpoch, transitionTime);
@@ -144,22 +144,17 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
     /**
      * @dev 通知所有系统合约epoch切换
      * 使用SystemV2中定义的固定地址常量
-     * @param newEpoch 新的epoch编号
-     * @param transitionTime epoch切换时间
      */
-    function _notifySystemModules(uint256 newEpoch, uint256 transitionTime) internal {
-        _safeNotifyModule(STAKE_HUB_ADDR, newEpoch, transitionTime);
-
-        _safeNotifyModule(GOVERNOR_ADDR, newEpoch, transitionTime);
+    function _notifySystemModules() internal {
+        _safeNotifyModule(STAKE_HUB_ADDR);
+        _safeNotifyModule(GOVERNOR_ADDR);
     }
 
     /**
      * @dev 安全地通知单个模块
      * @param moduleAddress 模块地址
-     * @param newEpoch 新epoch
-     * @param transitionTime 切换时间
      */
-    function _safeNotifyModule(address moduleAddress, uint256 newEpoch, uint256 transitionTime) internal {
+    function _safeNotifyModule(address moduleAddress) internal {
         if (moduleAddress != address(0)) {
             try IReconfigurableModule(moduleAddress).onNewEpoch() returns (bool success) {
                 if (!success) {

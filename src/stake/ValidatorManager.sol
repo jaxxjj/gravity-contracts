@@ -387,7 +387,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // 检查投票权增长限制
-        _checkVotingPowerIncrease(validator, votingPower);
+        _checkVotingPowerIncrease(votingPower);
 
         // 更新状态到PENDING_ACTIVE
         info.status = ValidatorStatus.PENDING_ACTIVE;
@@ -519,18 +519,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 获取活跃验证者列表
      */
-    function getActiveValidators() external view returns (address[] memory validators, uint64[] memory votingPowers) {
-        uint256 length = activeValidators.length();
-        validators = new address[](length);
-        votingPowers = new uint64[](length);
-
-        for (uint256 i = 0; i < length; i++) {
-            address validator = activeValidators.at(i);
-            validators[i] = validator;
-            votingPowers[i] = validatorInfos[validator].votingPower;
-        }
-
-        return (validators, votingPowers);
+    function getActiveValidators() external view returns (address[] memory) {
+        return activeValidators.values();
     }
 
     /**
@@ -797,7 +787,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 检查投票权增长限制
      */
-    function _checkVotingPowerIncrease(address validator, uint256 increaseAmount) internal view {
+    function _checkVotingPowerIncrease(uint256 increaseAmount) internal view {
         uint256 votingPowerIncreaseLimit = IStakeConfig(STAKE_CONFIG_ADDR).votingPowerIncreaseLimit();
 
         if (validatorSetData.totalVotingPower > 0) {
@@ -912,11 +902,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     /**
      * @dev 公开的投票权增长检查方法
-     * @param validator 验证者地址
      * @param increaseAmount 增加的质押金额
      */
-    function checkVotingPowerIncrease(address validator, uint256 increaseAmount) external view {
-        _checkVotingPowerIncrease(validator, increaseAmount);
+    function checkVotingPowerIncrease(uint256 increaseAmount) external view {
+        _checkVotingPowerIncrease(increaseAmount);
     }
 
     /**

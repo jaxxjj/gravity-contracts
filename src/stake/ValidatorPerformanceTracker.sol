@@ -141,17 +141,17 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
 
     /**
      * @dev 获取当前epoch的提案统计（对应Aptos的get_current_epoch_proposal_counts）
-     * @param validatorIndex 验证者索引
+     * @param validatorIdx 验证者索引
      * @return successful 成功提案数
      * @return failed 失败提案数
      */
-    function getCurrentEpochProposalCounts(uint256 validatorIndex)
+    function getCurrentEpochProposalCounts(uint256 validatorIdx)
         external
         view
-        validValidatorIndex(validatorIndex)
+        validValidatorIndex(validatorIdx)
         returns (uint64 successful, uint64 failed)
     {
-        IndividualValidatorPerformance memory perf = currentValidators[validatorIndex];
+        IndividualValidatorPerformance memory perf = currentValidators[validatorIdx];
         return (perf.successfulProposals, perf.failedProposals);
     }
 
@@ -180,11 +180,11 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     /**
      * @dev 获取历史epoch的性能数据
      * @param epoch epoch编号
-     * @param validatorIndex 验证者索引
+     * @param validatorIdx 验证者索引
      * @return successful 成功提案数
      * @return failed 失败提案数
      */
-    function getHistoricalPerformance(uint256 epoch, uint256 validatorIndex)
+    function getHistoricalPerformance(uint256 epoch, uint256 validatorIdx)
         external
         view
         returns (uint64 successful, uint64 failed)
@@ -193,14 +193,14 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         require(epoch <= currentEpoch, "Future epoch not accessible");
 
         if (epoch == currentEpoch) {
-            if (validatorIndex >= currentValidators.length) {
-                revert InvalidValidatorIndex(validatorIndex, currentValidators.length);
+            if (validatorIdx >= currentValidators.length) {
+                revert InvalidValidatorIndex(validatorIdx, currentValidators.length);
             }
-            IndividualValidatorPerformance memory perf = currentValidators[validatorIndex];
+            IndividualValidatorPerformance memory perf = currentValidators[validatorIdx];
             return (perf.successfulProposals, perf.failedProposals);
         } else {
-            require(validatorIndex < epochValidatorCount[epoch], "Invalid historical validator index");
-            IndividualValidatorPerformance memory perf = epochValidatorPerformance[epoch][validatorIndex];
+            require(validatorIdx < epochValidatorCount[epoch], "Invalid historical validator index");
+            IndividualValidatorPerformance memory perf = epochValidatorPerformance[epoch][validatorIdx];
             return (perf.successfulProposals, perf.failedProposals);
         }
     }
@@ -364,8 +364,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @dev 从ValidatorManager获取验证者集合
      */
     function _updateActiveValidatorSetFromSystem() internal {
-        (address[] memory validators, uint64[] memory votingPowers) =
-            IValidatorManager(VALIDATOR_MANAGER_ADDR).getActiveValidators();
+        address[] memory validators = IValidatorManager(VALIDATOR_MANAGER_ADDR).getActiveValidators();
         if (validators.length > 0) {
             _updateActiveValidatorSet(validators, IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
         }

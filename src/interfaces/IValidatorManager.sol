@@ -210,7 +210,7 @@ interface IValidatorManager {
     /**
      * @dev 获取活跃验证者列表
      */
-    function getActiveValidators() external view returns (address[] memory validators, uint64[] memory votingPowers);
+    function getActiveValidators() external view returns (address[] memory validators);
 
     /**
      * @dev 获取待处理验证者列表
@@ -240,7 +240,7 @@ interface IValidatorManager {
     /**
      * @dev 检查投票权增长限制
      */
-    function checkVotingPowerIncrease(address validator, uint256 increaseAmount) external view;
+    function checkVotingPowerIncrease(uint256 increaseAmount) external view;
 
     /**
      * @dev 检查验证者是否注册
