@@ -38,12 +38,17 @@ interface IStakeCredit {
     event LockupIncreased(uint256 oldLockup, uint256 newLockup);
     event LockupRenewed(uint256 newLockupTime);
     event LockupStarted(uint256 lockupTime);
-    event Initialized(address validator, string moniker);
+    event Initialized(address validator, string moniker, address beneficiary);
     event RewardDistributed(uint256 activeReward, uint256 pendingInactiveReward);
     event PendingInactiveProcessed(uint256 amount);
     event StakeReactivated(address indexed delegator, uint256 shares, uint256 gAmount);
+    // 添加一个事件来跟踪佣金受益人的变更
+    event BeneficiaryUpdated(address indexed validator, address indexed oldBeneficiary, address indexed newBeneficiary);
 
-    function initialize(address _validator, string memory _moniker) external payable;
+    // 添加一个错误定义
+    error StakeCredit__UnauthorizedCaller();
+
+    function initialize(address _validator, string memory _moniker, address _beneficiary) external payable;
 
     function active() external view returns (uint256);
     function inactive() external view returns (uint256);

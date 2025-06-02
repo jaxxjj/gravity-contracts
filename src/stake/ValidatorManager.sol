@@ -63,7 +63,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     // 从AccessControl移过来的映射
     mapping(address => address) public operatorToValidator; // 操作员 => 验证者
-    mapping(address => address) public voterToValidator; // 投票者 => 验证者
 
     /// 初始化标志
     bool private initialized;
@@ -134,7 +133,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         initialized = true;
 
         // 初始化ValidatorSet数据
-        validatorSetData = ValidatorSetData({ consensusScheme: 0, totalVotingPower: 0, totalJoiningPower: 0 });
+        validatorSetData = ValidatorSetData({consensusScheme: 0, totalVotingPower: 0, totalJoiningPower: 0});
 
         // 添加初始验证者
         for (uint256 i = 0; i < initialValidators.length; i++) {
@@ -158,20 +157,17 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             // 记录验证者名称
             _monikerSet[monikerHash] = true;
 
-            // 默认佣金设置
-            Commission memory defaultCommission = Commission({
-                rate: 0,
-                maxRate: 5000, // 默认最大佣金率50%
-                maxChangeRate: 500 // 默认每日最大变更率5%
-            });
-
             // 创建基本验证者信息
             validatorInfos[validator] = ValidatorInfo({
                 consensusPublicKey: "",
                 networkAddresses: "",
                 fullnodeAddresses: "",
                 voteAddress: "", // 初始空BLS地址
-                commissionRate: defaultCommission.rate,
+                commission: Commission({
+                    rate: 0,
+                    maxRate: 5000, // 默认最大佣金率50%
+                    maxChangeRate: 500 // 默认每日最大变更率5%
+                }),
                 moniker: moniker, // 使用传入的moniker
                 createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 registered: true,
@@ -181,11 +177,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 validatorIndex: i,
                 lastEpochActive: 0,
                 updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(), // 添加更新时间字段
-                roles: ValidatorRoles({
-                    operator: validator, // 默认自己是operator
-                    delegatedVoter: validator, // 默认自己是voter
-                    commissionBeneficiary: validator // 默认自己是beneficiary
-                })
+                operator: validator // 默认自己是operator
             });
 
             // 添加到活跃验证者集合
@@ -197,38 +189,79 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // 设置反向映射
             operatorToValidator[validator] = validator;
-            voterToValidator[validator] = validator;
         }
     }
 
     /**
      * @dev 注册新验证者（添加BLS proof验证）
      */
-    function registerValidator(
-        ValidatorRegistrationParams calldata params
-    ) external payable nonReentrant whenNotPaused {
-        address validator = msg.sender; // validator就是消息发送者
+    function registerValidator(ValidatorRegistrationParams calldata params)
+        external
+        payable
+        nonReentrant
+        whenNotPaused
+    {
+        address validator = msg.sender;
 
+        // 验证参数
+        _validateRegistrationParams(validator, params);
+
+        // 检查质押要求
+        uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
+        uint256 minStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
+        if (stakeMinusLock < minStake) {
+            revert InvalidStakeAmount(stakeMinusLock, minStake);
+        }
+
+        // 设置佣金受益人
+        address beneficiary = params.initialBeneficiary == address(0) ? validator : params.initialBeneficiary;
+
+        // 部署StakeCredit合约
+        address stakeCreditAddress = _deployStakeCredit(validator, params.moniker, beneficiary);
+
+        // 创建和存储验证者信息
+        _createValidatorInfo(validator, params, stakeCreditAddress);
+
+        // 设置各种映射关系
+        _setupValidatorMappings(validator, params);
+
+        // 记录验证者名称
+        bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
+        _monikerSet[monikerHash] = true;
+
+        // 初始质押
+        StakeCredit(payable(stakeCreditAddress)).delegate{value: msg.value}(validator);
+
+        emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
+        emit StakeCreditDeployed(validator, stakeCreditAddress);
+    }
+
+    /**
+     * @dev 验证参数的辅助函数
+     */
+    function _validateRegistrationParams(address validator, ValidatorRegistrationParams calldata params)
+        internal
+        view
+    {
         if (validatorInfos[validator].registered) {
             revert ValidatorAlreadyExists(validator);
         }
 
-        // 检查BLS投票地址是否重复
+        // 检查BLS投票地址
         if (params.voteAddress.length > 0 && voteToOperator[params.voteAddress] != address(0)) {
             revert DuplicateVoteAddress(params.voteAddress);
         }
 
-        // 检查共识地址是否重复
+        // 检查共识地址
         if (params.consensusPublicKey.length > 0 && consensusToOperator[params.consensusPublicKey] != address(0)) {
             revert DuplicateConsensusAddress(params.consensusPublicKey);
         }
 
-        // 检查验证者名称格式
+        // 检查验证者名称
         if (!_checkMoniker(params.moniker)) {
             revert InvalidMoniker(params.moniker);
         }
 
-        // 检查验证者名称是否重复
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         if (_monikerSet[monikerHash]) {
             revert DuplicateMoniker(params.moniker);
@@ -236,9 +269,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // 检查佣金设置
         if (
-            params.commission.maxRate > IStakeConfig(STAKE_CONFIG_ADDR).MAX_COMMISSION_RATE() ||
-            params.commission.rate > params.commission.maxRate ||
-            params.commission.maxChangeRate > params.commission.maxRate
+            params.commission.maxRate > IStakeConfig(STAKE_CONFIG_ADDR).MAX_COMMISSION_RATE()
+                || params.commission.rate > params.commission.maxRate
+                || params.commission.maxChangeRate > params.commission.maxRate
         ) {
             revert InvalidCommission();
         }
@@ -248,21 +281,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             revert InvalidVoteAddress();
         }
 
-        // 检查最小质押要求
-        uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount(); // create validator need to lock 1 BNB
-        uint256 minStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
-        if (stakeMinusLock < minStake) {
-            revert InvalidStakeAmount(stakeMinusLock, minStake);
-        }
-
-        // 部署StakeCredit合约
-        address stakeCreditAddress = _deployStakeCredit(validator, params.moniker);
-
-        // 设置佣金受益人，如果未指定则默认为validator本身
-        address beneficiary = params.initialBeneficiary == address(0) ? validator : params.initialBeneficiary;
-
         // 验证地址有效性
-        if (params.initialOperator == address(0) || params.initialVoter == address(0)) {
+        if (params.initialOperator == address(0)) {
             revert InvalidAddress(address(0));
         }
 
@@ -270,33 +290,59 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         if (operatorToValidator[params.initialOperator] != address(0)) {
             revert AddressAlreadyInUse(params.initialOperator, operatorToValidator[params.initialOperator]);
         }
+    }
 
-        // 存储验证者信息
-        validatorInfos[validator] = ValidatorInfo({
-            consensusPublicKey: params.consensusPublicKey,
-            networkAddresses: params.networkAddresses,
-            fullnodeAddresses: params.fullnodeAddresses,
-            voteAddress: params.voteAddress,
-            commissionRate: params.commission.rate,
-            moniker: params.moniker,
-            createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
-            registered: true,
-            stakeCreditAddress: stakeCreditAddress,
-            status: ValidatorStatus.INACTIVE,
-            votingPower: 0,
-            validatorIndex: 0,
-            lastEpochActive: 0,
-            updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
-            roles: ValidatorRoles({
-                operator: params.initialOperator,
-                delegatedVoter: params.initialVoter,
-                commissionBeneficiary: beneficiary
-            })
-        });
+    /**
+     * @dev 创建验证者信息的辅助函数
+     */
+    function _createValidatorInfo(
+        address validator,
+        ValidatorRegistrationParams calldata params,
+        address stakeCreditAddress
+    ) internal {
+        // 不要使用结构体初始化语法，而是直接设置各个字段
+        _setValidatorBasicInfo(validator, params);
+        _setValidatorAddresses(validator, params);
+        _setValidatorStatus(validator, stakeCreditAddress);
+    }
 
+    // 2. 拆分为更小的函数，每个函数只设置几个字段
+    function _setValidatorBasicInfo(address validator, ValidatorRegistrationParams calldata params) internal {
+        ValidatorInfo storage info = validatorInfos[validator];
+
+        info.moniker = params.moniker;
+        info.commission = params.commission;
+        info.createdTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+        info.updateTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+        info.operator = params.initialOperator;
+    }
+
+    function _setValidatorAddresses(address validator, ValidatorRegistrationParams calldata params) internal {
+        ValidatorInfo storage info = validatorInfos[validator];
+
+        info.consensusPublicKey = params.consensusPublicKey;
+        info.networkAddresses = params.networkAddresses;
+        info.fullnodeAddresses = params.fullnodeAddresses;
+        info.voteAddress = params.voteAddress;
+    }
+
+    function _setValidatorStatus(address validator, address stakeCreditAddress) internal {
+        ValidatorInfo storage info = validatorInfos[validator];
+
+        info.registered = true;
+        info.stakeCreditAddress = stakeCreditAddress;
+        info.status = ValidatorStatus.INACTIVE;
+        info.votingPower = 0;
+        info.validatorIndex = 0;
+        info.lastEpochActive = 0;
+    }
+
+    /**
+     * @dev 设置映射关系的辅助函数
+     */
+    function _setupValidatorMappings(address validator, ValidatorRegistrationParams calldata params) internal {
         // 设置反向映射
         operatorToValidator[params.initialOperator] = validator;
-        voterToValidator[params.initialVoter] = validator;
 
         // 注册投票地址映射
         if (params.voteAddress.length > 0) {
@@ -307,23 +353,18 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         if (params.consensusPublicKey.length > 0) {
             consensusToOperator[params.consensusPublicKey] = validator;
         }
-
-        // 记录验证者名称
-        _monikerSet[monikerHash] = true;
-
-        // 初始质押
-        StakeCredit(payable(stakeCreditAddress)).delegate{ value: msg.value }(validator);
-
-        emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
-        emit StakeCreditDeployed(validator, stakeCreditAddress);
     }
 
     /**
      * @dev 加入验证者集合（对应Aptos的join_validator_set）
      */
-    function joinValidatorSet(
-        address validator
-    ) external whenNotPaused whenValidatorSetChangeAllowed validatorExists(validator) onlyValidatorOperator(validator) {
+    function joinValidatorSet(address validator)
+        external
+        whenNotPaused
+        whenValidatorSetChangeAllowed
+        validatorExists(validator)
+        onlyValidatorOperator(validator)
+    {
         ValidatorInfo storage info = validatorInfos[validator];
 
         // 检查当前状态
@@ -362,19 +403,20 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
         emit ValidatorJoinRequested(validator, votingPower, currentEpoch);
         emit ValidatorStatusChanged(
-            validator,
-            uint8(ValidatorStatus.INACTIVE),
-            uint8(ValidatorStatus.PENDING_ACTIVE),
-            currentEpoch
+            validator, uint8(ValidatorStatus.INACTIVE), uint8(ValidatorStatus.PENDING_ACTIVE), currentEpoch
         );
     }
 
     /**
      * @dev 离开验证者集合（对应Aptos的leave_validator_set）
      */
-    function leaveValidatorSet(
-        address validator
-    ) external whenNotPaused whenValidatorSetChangeAllowed validatorExists(validator) onlyValidatorOperator(validator) {
+    function leaveValidatorSet(address validator)
+        external
+        whenNotPaused
+        whenValidatorSetChangeAllowed
+        validatorExists(validator)
+        onlyValidatorOperator(validator)
+    {
         ValidatorInfo storage info = validatorInfos[validator];
         uint8 currentStatus = uint8(info.status);
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
@@ -392,10 +434,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             info.status = ValidatorStatus.INACTIVE;
 
             emit ValidatorStatusChanged(
-                validator,
-                uint8(ValidatorStatus.PENDING_ACTIVE),
-                uint8(ValidatorStatus.INACTIVE),
-                currentEpoch
+                validator, uint8(ValidatorStatus.PENDING_ACTIVE), uint8(ValidatorStatus.INACTIVE), currentEpoch
             );
         } else if (currentStatus == uint8(ValidatorStatus.ACTIVE)) {
             // 检查是否是最后一个验证者
@@ -416,10 +455,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             info.status = ValidatorStatus.PENDING_INACTIVE;
 
             emit ValidatorStatusChanged(
-                validator,
-                uint8(ValidatorStatus.ACTIVE),
-                uint8(ValidatorStatus.PENDING_INACTIVE),
-                currentEpoch
+                validator, uint8(ValidatorStatus.ACTIVE), uint8(ValidatorStatus.PENDING_INACTIVE), currentEpoch
             );
         } else {
             revert ValidatorNotActive(validator);
@@ -518,15 +554,15 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 更新共识公钥
      */
-    function updateConsensusKey(
-        address validator,
-        bytes calldata newConsensusKey
-    ) external validatorExists(validator) onlyValidatorOperator(validator) {
+    function updateConsensusKey(address validator, bytes calldata newConsensusKey)
+        external
+        validatorExists(validator)
+        onlyValidatorOperator(validator)
+    {
         // 检查新的共识地址是否重复且非同一验证者
         if (
-            newConsensusKey.length > 0 &&
-            consensusToOperator[newConsensusKey] != address(0) &&
-            consensusToOperator[newConsensusKey] != validator
+            newConsensusKey.length > 0 && consensusToOperator[newConsensusKey] != address(0)
+                && consensusToOperator[newConsensusKey] != validator
         ) {
             revert DuplicateConsensusAddress(newConsensusKey);
         }
@@ -566,10 +602,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param validator 验证者地址
      * @param newCommissionRate 新的佣金率
      */
-    function updateCommissionRate(
-        address validator,
-        uint64 newCommissionRate
-    ) external validatorExists(validator) onlyValidatorOperator(validator) {
+    function updateCommissionRate(address validator, uint64 newCommissionRate)
+        external
+        validatorExists(validator)
+        onlyValidatorOperator(validator)
+    {
         ValidatorInfo storage info = validatorInfos[validator];
 
         // 检查更新频率
@@ -583,19 +620,17 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // 计算变化量
-        uint256 changeRate = newCommissionRate >= info.commissionRate
-            ? newCommissionRate - info.commissionRate
-            : info.commissionRate - newCommissionRate;
+        uint256 changeRate = newCommissionRate >= info.commission.rate
+            ? newCommissionRate - info.commission.rate
+            : info.commission.rate - newCommissionRate;
 
         // 检查变化量是否超过每日最大变更率
-        // 注意：由于我们没有在ValidatorInfo中保存maxChangeRate，这里简化为使用默认值或者IStakeConfig中的值
-        uint64 maxChangeRate = 500; // 默认5%
-        if (changeRate > maxChangeRate) {
+        if (changeRate > info.commission.maxChangeRate) {
             revert InvalidCommission();
         }
 
         // 更新佣金率
-        info.commissionRate = newCommissionRate;
+        info.commission.rate = newCommissionRate;
         info.updateTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
 
         emit CommissionRateEdited(validator, newCommissionRate);
@@ -608,11 +643,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param newVoteAddress 新的投票地址
      * @param blsProof BLS proof
      */
-    function updateVoteAddress(
-        address validator,
-        bytes calldata newVoteAddress,
-        bytes calldata blsProof
-    ) external validatorExists(validator) onlyValidatorOperator(validator) {
+    function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof)
+        external
+        validatorExists(validator)
+        onlyValidatorOperator(validator)
+    {
         // 验证新的投票地址
         if (newVoteAddress.length > 0) {
             // BLS proof验证
@@ -668,10 +703,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             info.lastEpochActive = currentEpoch;
 
             emit ValidatorStatusChanged(
-                validator,
-                uint8(ValidatorStatus.PENDING_ACTIVE),
-                uint8(ValidatorStatus.ACTIVE),
-                currentEpoch
+                validator, uint8(ValidatorStatus.PENDING_ACTIVE), uint8(ValidatorStatus.ACTIVE), currentEpoch
             );
         }
     }
@@ -698,10 +730,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             // 处理资金状态的逻辑已经在StakeCredit.onNewEpoch()中完成
 
             emit ValidatorStatusChanged(
-                validator,
-                uint8(ValidatorStatus.PENDING_INACTIVE),
-                uint8(ValidatorStatus.INACTIVE),
-                currentEpoch
+                validator, uint8(ValidatorStatus.PENDING_INACTIVE), uint8(ValidatorStatus.INACTIVE), currentEpoch
             );
         }
     }
@@ -733,10 +762,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 info.lastEpochActive = currentEpoch;
 
                 emit ValidatorStatusChanged(
-                    validator,
-                    uint8(ValidatorStatus.ACTIVE),
-                    uint8(ValidatorStatus.INACTIVE),
-                    currentEpoch
+                    validator, uint8(ValidatorStatus.ACTIVE), uint8(ValidatorStatus.INACTIVE), currentEpoch
                 );
             }
         }
@@ -748,9 +774,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 部署StakeCredit合约
      */
-    function _deployStakeCredit(address validator, string memory moniker) internal returns (address) {
+    function _deployStakeCredit(address validator, string memory moniker, address beneficiary)
+        internal
+        returns (address)
+    {
         address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
-        IStakeCredit(creditProxy).initialize{ value: msg.value }(validator, moniker);
+        IStakeCredit(creditProxy).initialize{value: msg.value}(validator, moniker, beneficiary);
         emit StakeCreditDeployed(validator, creditProxy);
 
         return creditProxy;
@@ -791,11 +820,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param blsProof BLS proof
      * @return 验证是否成功
      */
-    function _checkVoteAddress(
-        address operatorAddress,
-        bytes calldata voteAddress,
-        bytes calldata blsProof
-    ) internal view returns (bool) {
+    function _checkVoteAddress(address operatorAddress, bytes calldata voteAddress, bytes calldata blsProof)
+        internal
+        view
+        returns (bool)
+    {
         // 检查长度
         if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
             return false;
@@ -814,9 +843,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         bytes memory output = new bytes(1);
         assembly {
             let len := mload(input)
-            if iszero(staticcall(not(0), 0x66, add(input, 0x20), len, add(output, 0x20), 0x01)) {
-                revert(0, 0)
-            }
+            if iszero(staticcall(not(0), 0x66, add(input, 0x20), len, add(output, 0x20), 0x01)) { revert(0, 0) }
         }
         uint8 result = uint8(output[0]);
         if (result != uint8(1)) {
@@ -875,12 +902,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 validatorSetData.totalVotingPower -= info.votingPower;
 
                 uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
-                emit ValidatorStatusChanged(
-                    validator,
-                    oldStatus,
-                    uint8(ValidatorStatus.PENDING_INACTIVE),
-                    currentEpoch
-                );
+                emit ValidatorStatusChanged(validator, oldStatus, uint8(ValidatorStatus.PENDING_INACTIVE), currentEpoch);
             }
         }
     }
@@ -973,7 +995,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             networkAddresses: networkAddresses,
             fullnodeAddresses: fullnodeAddresses,
             voteAddress: voteAddress,
-            commissionRate: commissionRate,
+            commission: Commission({
+                rate: commissionRate,
+                maxRate: 5000, // 默认最大佣金率50%
+                maxChangeRate: 500 // 默认每日最大变更率5%
+            }),
             moniker: moniker,
             createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
             registered: true,
@@ -983,11 +1009,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             validatorIndex: 0,
             lastEpochActive: 0,
             updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
-            roles: ValidatorRoles({
-                operator: validator, // Default to self
-                delegatedVoter: validator, // Default to self
-                commissionBeneficiary: validator // Default to self
-            })
+            operator: validator // Default to self
         });
     }
 
@@ -1028,9 +1050,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 uint256 stakeAmount = _getValidatorCurrentEpochVotingPower(validator);
 
                 // 直接使用接口调用，不创建局部变量
-                (uint64 successfulProposals, uint64 failedProposals, , bool exists) = IValidatorPerformanceTracker(
-                    PERFORMANCE_TRACKER_ADDR
-                ).getValidatorPerformance(validator);
+                (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
+                    IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
 
                 if (exists) {
                     uint64 totalProposals = successfulProposals + failedProposals;
@@ -1039,9 +1060,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                     uint256 rewardAmount;
                     if (totalProposals > 0) {
                         rewardAmount = IStakeConfig(STAKE_CONFIG_ADDR).calculateRewardsAmount(
-                            stakeAmount,
-                            successfulProposals,
-                            totalProposals
+                            stakeAmount, successfulProposals, totalProposals
                         );
                     } else {
                         // 如果没有提案记录，使用100%成功率
@@ -1050,12 +1069,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
                     if (rewardAmount > 0) {
                         // 获取验证者的佣金率
-                        uint64 commissionRate = validatorInfos[validator].commissionRate;
+                        uint64 commissionRate = validatorInfos[validator].commission.rate;
 
                         // 发送奖励到StakeCredit合约
-                        StakeCredit(payable(stakeCreditAddress)).distributeReward{ value: rewardAmount }(
-                            commissionRate
-                        );
+                        StakeCredit(payable(stakeCreditAddress)).distributeReward{value: rewardAmount}(commissionRate);
                         emit RewardsDistributed(validator, rewardAmount);
                     }
                 }
@@ -1090,9 +1107,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             address validator = validators[i];
 
             // 获取验证者性能数据
-            (uint64 successfulProposals, uint64 failedProposals, , bool exists) = IValidatorPerformanceTracker(
-                PERFORMANCE_TRACKER_ADDR
-            ).getValidatorPerformance(validator);
+            (uint64 successfulProposals, uint64 failedProposals,, bool exists) =
+                IValidatorPerformanceTracker(PERFORMANCE_TRACKER_ADDR).getValidatorPerformance(validator);
 
             if (exists && (successfulProposals + failedProposals > 0)) {
                 // 计算性能权重（可根据需要调整公式）
@@ -1117,10 +1133,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                         uint256 reward = (totalIncoming * weights[i]) / totalWeight;
 
                         // 获取佣金率
-                        uint64 commissionRate = validatorInfos[validator].commissionRate;
+                        uint64 commissionRate = validatorInfos[validator].commission.rate;
 
                         // 发送奖励
-                        StakeCredit(payable(stakeCreditAddress)).distributeReward{ value: reward }(commissionRate);
+                        StakeCredit(payable(stakeCreditAddress)).distributeReward{value: reward}(commissionRate);
 
                         emit RewardsDistributed(validator, reward);
                     }
@@ -1154,9 +1170,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         for (uint256 i = 1; i < bz.length; ++i) {
             // Check if the ASCII value of the character falls outside the range of alphanumeric characters
             if (
-                (uint8(bz[i]) < 48 || uint8(bz[i]) > 57) &&
-                (uint8(bz[i]) < 65 || uint8(bz[i]) > 90) &&
-                (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)
+                (uint8(bz[i]) < 48 || uint8(bz[i]) > 57) && (uint8(bz[i]) < 65 || uint8(bz[i]) > 90)
+                    && (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)
             ) {
                 // Character is a special character
                 return false;
@@ -1189,16 +1204,18 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 更新验证者操作员 - 只有validator本身可以更改operator
      */
-    function updateOperator(
-        address validator,
-        address newOperator
-    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newOperator) {
+    function updateOperator(address validator, address newOperator)
+        external
+        validatorExists(validator)
+        onlyValidatorSelf(validator)
+        validAddress(newOperator)
+    {
         // 检查新操作员是否已被其他验证者使用
         if (operatorToValidator[newOperator] != address(0) && operatorToValidator[newOperator] != validator) {
             revert AddressAlreadyInUse(newOperator, operatorToValidator[newOperator]);
         }
 
-        address oldOperator = validatorInfos[validator].roles.operator;
+        address oldOperator = validatorInfos[validator].operator;
 
         // 更新反向映射
         if (oldOperator != address(0)) {
@@ -1206,46 +1223,20 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
         operatorToValidator[newOperator] = validator;
 
-        validatorInfos[validator].roles.operator = newOperator;
+        validatorInfos[validator].operator = newOperator;
 
         emit OperatorUpdated(validator, oldOperator, newOperator);
     }
 
     /**
-     * @dev 更新委托投票者 - 只有validator本身可以更改voter
+     * @dev 获取验证者的操作员
      */
-    function updateDelegatedVoter(
-        address validator,
-        address newVoter
-    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newVoter) {
-        address oldVoter = validatorInfos[validator].roles.delegatedVoter;
-
-        // 更新反向映射
-        if (oldVoter != address(0) && voterToValidator[oldVoter] == validator) {
-            delete voterToValidator[oldVoter];
-        }
-        voterToValidator[newVoter] = validator;
-
-        validatorInfos[validator].roles.delegatedVoter = newVoter;
-
-        emit DelegatedVoterUpdated(validator, oldVoter, newVoter);
+    function getOperator(address validator) external view validatorExists(validator) returns (address) {
+        return validatorInfos[validator].operator;
     }
 
     /**
-     * @dev 更新佣金受益人 - 只有validator本身可以更改佣金受益人
-     */
-    function updateCommissionBeneficiary(
-        address validator,
-        address newBeneficiary
-    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newBeneficiary) {
-        address oldBeneficiary = validatorInfos[validator].roles.commissionBeneficiary;
-        validatorInfos[validator].roles.commissionBeneficiary = newBeneficiary;
-
-        emit CommissionBeneficiaryUpdated(validator, oldBeneficiary, newBeneficiary);
-    }
-
-    /**
-     * @dev 检查是否为验证者本身
+     * @dev 检查是否为验证者
      */
     function isValidator(address validator, address account) public view returns (bool) {
         return validator == account && validatorInfos[validator].registered;
@@ -1255,14 +1246,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @dev 检查是否为验证者操作员
      */
     function isOperator(address validator, address account) public view returns (bool) {
-        return validatorInfos[validator].registered && validatorInfos[validator].roles.operator == account;
-    }
-
-    /**
-     * @dev 检查是否为验证者的委托投票者
-     */
-    function isDelegatedVoter(address validator, address account) public view returns (bool) {
-        return validatorInfos[validator].registered && validatorInfos[validator].roles.delegatedVoter == account;
+        return validatorInfos[validator].registered && validatorInfos[validator].operator == account;
     }
 
     /**
@@ -1272,35 +1256,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function hasOperatorPermission(address validator, address account) public view returns (bool) {
         if (!validatorInfos[validator].registered) return false;
 
-        ValidatorRoles storage roles = validatorInfos[validator].roles;
-        return account == validator || account == roles.operator;
-    }
-
-    /**
-     * @dev 检查是否有投票权限
-     */
-    function hasVotingPermission(address validator, address account) public view returns (bool) {
-        return isDelegatedVoter(validator, account);
-    }
-
-    /**
-     * @dev 获取验证者的操作员
-     */
-    function getOperator(address validator) external view validatorExists(validator) returns (address) {
-        return validatorInfos[validator].roles.operator;
-    }
-
-    /**
-     * @dev 获取验证者委托投票者
-     */
-    function getDelegatedVoter(address validator) external view validatorExists(validator) returns (address) {
-        return validatorInfos[validator].roles.delegatedVoter;
-    }
-
-    /**
-     * @dev 获取佣金受益人
-     */
-    function getCommissionBeneficiary(address validator) external view validatorExists(validator) returns (address) {
-        return validatorInfos[validator].roles.commissionBeneficiary;
+        return account == validator || account == validatorInfos[validator].operator;
     }
 }

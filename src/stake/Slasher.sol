@@ -63,13 +63,12 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 提交slash提案 - 预留实现
      */
-    function proposeSlash(
-        address validator,
-        uint256 amount,
-        SlashType slashType,
-        bytes32 evidence,
-        uint256 blockNumber
-    ) external override onlySlasher returns (uint256 proposalId) {
+    function proposeSlash(address validator, uint256 amount, SlashType slashType, bytes32 evidence, uint256 blockNumber)
+        external
+        override
+        onlySlasher
+        returns (uint256 proposalId)
+    {
         // TODO: 实现slash提案逻辑
         // 1. 验证参数有效性
         // 2. 检查验证者状态
@@ -213,12 +212,11 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 验证slash参数 - 预留实现
      */
-    function _validateSlashParams(
-        address validator,
-        uint256 amount,
-        SlashType slashType,
-        bytes32 evidence
-    ) internal view returns (bool) {
+    function _validateSlashParams(address validator, uint256 amount, SlashType slashType, bytes32 evidence)
+        internal
+        view
+        returns (bool)
+    {
         // TODO: 实现参数验证
         validator;
         amount;

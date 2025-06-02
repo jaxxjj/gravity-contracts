@@ -52,6 +52,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     mapping(uint256 => uint256) public rewardRecord;
     mapping(uint256 => uint256) public totalPooledGRecord;
 
+    // ======== 佣金受益人信息 ========
+    address public commissionBeneficiary;
+
     constructor() {
         _disableInitializers();
     }
@@ -72,8 +75,13 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @dev 初始化函数，替代构造函数用于代理模式
      * @param _validator 验证者地址
      * @param _moniker 验证者名称
+     * @param _beneficiary 佣金受益人地址
      */
-    function initialize(address _validator, string memory _moniker) external payable override initializer {
+    function initialize(address _validator, string memory _moniker, address _beneficiary)
+        external
+        payable
+        initializer
+    {
         // 初始化ERC20基础部分
         _initializeERC20(_moniker);
 
@@ -86,7 +94,10 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // 设置初始锁定期并处理初始质押
         _initializeLockupAndStake(_validator, msg.value);
 
-        emit Initialized(_validator, _moniker);
+        // 设置佣金受益人
+        commissionBeneficiary = _beneficiary;
+
+        emit Initialized(_validator, _moniker, _beneficiary);
     }
 
     /**
@@ -253,10 +264,12 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param amount 要提取的具体金额（0表示提取全部可用）
      * @return withdrawnAmount 提取的G数量
      */
-    function withdraw(
-        address payable delegator,
-        uint256 amount
-    ) external onlyStakeHub nonReentrant returns (uint256 withdrawnAmount) {
+    function withdraw(address payable delegator, uint256 amount)
+        external
+        onlyStakeHub
+        nonReentrant
+        returns (uint256 withdrawnAmount)
+    {
         // 1. 首先检查并处理锁定期状态转换
         _checkAndProcessLockup();
 
@@ -291,7 +304,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         _burn(delegator, sharesToBurn);
 
         // 9. 转账
-        (bool success, ) = delegator.call{ value: withdrawnAmount }("");
+        (bool success,) = delegator.call{value: withdrawnAmount}("");
         if (!success) revert TransferFailed();
 
         emit StakeWithdrawn(delegator, withdrawnAmount);
@@ -329,7 +342,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         }
 
         // 直接转给调用者(Delegation合约)
-        (bool success, ) = msg.sender.call{ value: gAmount }("");
+        (bool success,) = msg.sender.call{value: gAmount}("");
         if (!success) revert TransferFailed();
 
         return gAmount;
@@ -391,8 +404,8 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             uint256 totalPooled = getTotalPooledG();
             uint256 commissionShares = totalSupply() > 0 ? (commission * totalSupply()) / totalPooled : commission;
 
-            // 获取佣金受益人地址
-            address beneficiary = IValidatorManager(VALIDATOR_MANAGER_ADDR).getCommissionBeneficiary(validator);
+            // 获取佣金受益人地址，如果未设置则默认为validator
+            address beneficiary = commissionBeneficiary == address(0) ? validator : commissionBeneficiary;
 
             _mint(beneficiary, commissionShares);
 
@@ -524,14 +537,13 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             // 如果还没有锁定期，调用激活函数
             if (_isCurrentEpochValidator()) {
                 lockedUntilSecs =
-                    ITimestamp(TIMESTAMP_ADDR).nowSeconds() +
-                    IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
+                    ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
                 emit LockupStarted(lockedUntilSecs);
             }
         } else {
             // 已有锁定期，续期
-            uint256 newLockupTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds() +
-                IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
+            uint256 newLockupTime =
+                ITimestamp(TIMESTAMP_ADDR).nowSeconds() + IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
             lockedUntilSecs = newLockupTime;
             emit LockupRenewed(newLockupTime);
         }
@@ -674,5 +686,21 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             totalSupply(),
             currentTime < lockedUntilSecs
         );
+    }
+
+    /**
+     * @dev 更新佣金受益人地址
+     * @param newBeneficiary 新的佣金受益人地址
+     */
+    function updateBeneficiary(address newBeneficiary) external {
+        // 只有validator自己可以调用
+        if (msg.sender != validator) {
+            revert StakeCredit__UnauthorizedCaller();
+        }
+
+        address oldBeneficiary = commissionBeneficiary;
+        commissionBeneficiary = newBeneficiary;
+
+        emit BeneficiaryUpdated(validator, oldBeneficiary, newBeneficiary);
     }
 }

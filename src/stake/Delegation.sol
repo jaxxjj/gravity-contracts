@@ -40,14 +40,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     /**
      * @dev 向验证者质押 (对应Aptos add_stake)
      * @param validator 验证者地址
-     * @param delegateVotePower 是否委托投票权
      */
-    function delegate(
-        address validator,
-        bool delegateVotePower
-    ) external payable whenNotPaused validatorExists(validator) {
-        uint256 bnbAmount = msg.value;
-        if (bnbAmount < IStakeConfig(STAKE_CONFIG_ADDR).minDelegationChange()) {
+    function delegate(address validator) external payable whenNotPaused validatorExists(validator) {
+        uint256 gAmount = msg.value;
+        if (gAmount < IStakeConfig(STAKE_CONFIG_ADDR).minDelegationChange()) {
             revert Delegation__LessThanMinDelegationChange();
         }
 
@@ -56,17 +52,14 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         // 获取StakeCredit地址
         address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
 
-        uint256 shares = IStakeCredit(stakeCreditAddress).delegate{ value: bnbAmount }(delegator);
+        uint256 shares = IStakeCredit(stakeCreditAddress).delegate{value: gAmount}(delegator);
 
         // 检查投票权增长限制 (对应Aptos EVOTING_POWER_INCREASE_EXCEEDS_LIMIT)
         IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(validator, msg.value);
 
-        emit Delegated(validator, delegator, shares, bnbAmount);
+        emit Delegated(validator, delegator, shares, gAmount);
 
         IGovToken(GOV_TOKEN_ADDR).sync(stakeCreditAddress, delegator);
-        if (delegateVotePower) {
-            IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, validator);
-        }
     }
 
     /**
@@ -74,10 +67,12 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param validator 验证者地址
      * @param shares 要解除的份额
      */
-    function undelegate(
-        address validator,
-        uint256 shares
-    ) external validatorExists(validator) whenNotPaused notInBlackList {
+    function undelegate(address validator, uint256 shares)
+        external
+        validatorExists(validator)
+        whenNotPaused
+        notInBlackList
+    {
         if (shares == 0) {
             revert Delegation__ZeroShares();
         }
@@ -116,7 +111,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         uint256 feeCharge = (amount * feeRate) / IStakeConfig(STAKE_CONFIG_ADDR).PERCENTAGE_BASE();
 
         if (feeCharge > 0) {
-            (bool success, ) = dstStakeCredit.call{ value: feeCharge }("");
+            (bool success,) = dstStakeCredit.call{value: feeCharge}("");
             if (!success) {
                 revert Delegation__TransferFailed();
             }
@@ -126,12 +121,14 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     }
 
     // 重构后的 redelegate 函数
-    function redelegate(
-        address srcValidator,
-        address dstValidator,
-        uint256 shares,
-        bool delegateVotePower
-    ) external whenNotPaused notInBlackList validatorExists(srcValidator) validatorExists(dstValidator) nonReentrant {
+    function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower)
+        external
+        whenNotPaused
+        notInBlackList
+        validatorExists(srcValidator)
+        validatorExists(dstValidator)
+        nonReentrant
+    {
         // 基本检查
         if (shares == 0) revert Delegation__ZeroShares();
         if (srcValidator == dstValidator) revert Delegation__SameValidator();
@@ -146,8 +143,8 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         _validateDstValidator(dstValidator, delegator);
 
         // 从源验证者解绑
-        uint256 bnbAmount = IStakeCredit(srcStakeCredit).unbond(delegator, shares);
-        if (bnbAmount < IStakeConfig(STAKE_CONFIG_ADDR).minDelegationChange()) {
+        uint256 gAmount = IStakeCredit(srcStakeCredit).unbond(delegator, shares);
+        if (gAmount < IStakeConfig(STAKE_CONFIG_ADDR).minDelegationChange()) {
             revert Delegation__LessThanMinDelegationChange();
         }
 
@@ -157,42 +154,17 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         }
 
         // 计算并收取手续费
-        uint256 netAmount = _calculateAndChargeFee(dstStakeCredit, bnbAmount);
+        uint256 netAmount = _calculateAndChargeFee(dstStakeCredit, gAmount);
 
         // 委托到目标验证者
-        uint256 newShares = IStakeCredit(dstStakeCredit).delegate{ value: netAmount }(delegator);
+        uint256 newShares = IStakeCredit(dstStakeCredit).delegate{value: netAmount}(delegator);
 
         // 检查投票权增长限制
         IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(dstValidator, netAmount);
 
-        emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, netAmount, bnbAmount - netAmount);
+        emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, netAmount, gAmount - netAmount);
 
         // 处理治理同步
-        _handleGovernanceSync(srcStakeCredit, dstStakeCredit, delegator, dstValidator, delegateVotePower);
-    }
-
-    // 验证目标验证者状态
-    function _validateDstValidator(address dstValidator, address delegator) internal view {
-        IValidatorManager.ValidatorStatus dstStatus = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStatus(
-            dstValidator
-        );
-        if (
-            dstStatus != IValidatorManager.ValidatorStatus.ACTIVE &&
-            dstStatus != IValidatorManager.ValidatorStatus.PENDING_ACTIVE &&
-            delegator != dstValidator
-        ) {
-            revert Delegation__OnlySelfDelegationToJailedValidator();
-        }
-    }
-
-    // 处理治理代币同步和投票权委托
-    function _handleGovernanceSync(
-        address srcStakeCredit,
-        address dstStakeCredit,
-        address delegator,
-        address dstValidator,
-        bool delegateVotePower
-    ) internal {
         address[] memory stakeCredits = new address[](2);
         stakeCredits[0] = srcStakeCredit;
         stakeCredits[1] = dstStakeCredit;
@@ -201,5 +173,23 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         if (delegateVotePower) {
             IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, dstValidator);
         }
+    }
+
+    // 验证目标验证者状态
+    function _validateDstValidator(address dstValidator, address delegator) internal view {
+        IValidatorManager.ValidatorStatus dstStatus =
+            IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStatus(dstValidator);
+        if (
+            dstStatus != IValidatorManager.ValidatorStatus.ACTIVE
+                && dstStatus != IValidatorManager.ValidatorStatus.PENDING_ACTIVE && delegator != dstValidator
+        ) {
+            revert Delegation__OnlySelfDelegationToJailedValidator();
+        }
+    }
+
+    // 添加独立的投票委托函数
+    function delegateVoteTo(address voter) external whenNotPaused notInBlackList {
+        IGovToken(GOV_TOKEN_ADDR).delegateVote(msg.sender, voter);
+        emit VoteDelegated(msg.sender, voter);
     }
 }
