@@ -16,7 +16,7 @@ contract Timelock is System, Initializable, TimelockControllerUpgradeable {
     uint256 private constant INIT_MINIMAL_DELAY = 24 hours;
 
     /*----------------- init -----------------*/
-    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
+    function initialize() external initializer onlySystemCaller {
         address[] memory _governor = new address[](1);
         _governor[0] = GOVERNOR_ADDR;
         __TimelockController_init(INIT_MINIMAL_DELAY, _governor, _governor, GOVERNOR_ADDR);

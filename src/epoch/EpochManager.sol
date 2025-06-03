@@ -79,17 +79,8 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * 只能由系统账户（0x0）或者block模块调用
      */
     function triggerEpochTransition() external onlyAuthorizedCallers {
-        // 检查是否已经过去足够的时间
-        // 注意：这里需要将微秒转换为秒进行比较
-        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-        uint256 epoch_interval_seconds = epochIntervalMicrosecs / 1000000;
-
-        if (currentTime < lastEpochTransitionTime + epoch_interval_seconds) {
-            revert EpochDurationNotPassed(currentTime, lastEpochTransitionTime + epoch_interval_seconds);
-        }
-
         uint256 newEpoch = currentEpoch + 1;
-        uint256 transitionTime = currentTime;
+        uint256 transitionTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
 
         // 更新epoch数据
         currentEpoch = newEpoch;
@@ -118,11 +109,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * @return lastTransitionTime 上次epoch转换时间
      * @return interval epoch持续时间（微秒）
      */
-    function getCurrentEpochInfo()
-        external
-        view
-        returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval)
-    {
+    function getCurrentEpochInfo() external view returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval) {
         return (currentEpoch, lastEpochTransitionTime, epochIntervalMicrosecs);
     }
 
@@ -147,7 +134,6 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      */
     function _notifySystemModules() internal {
         _safeNotifyModule(VALIDATOR_MANAGER_ADDR);
-        _safeNotifyModule(GOVERNOR_ADDR);
     }
 
     /**
@@ -156,8 +142,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      */
     function _safeNotifyModule(address moduleAddress) internal {
         if (moduleAddress != address(0)) {
-            try IReconfigurableModule(moduleAddress).onNewEpoch() {}
-            catch Error(string memory reason) {
+            try IReconfigurableModule(moduleAddress).onNewEpoch() {} catch Error(string memory reason) {
                 emit ModuleNotificationFailed(moduleAddress, bytes(reason));
             } catch (bytes memory lowLevelData) {
                 emit ModuleNotificationFailed(moduleAddress, lowLevelData);

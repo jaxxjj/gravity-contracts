@@ -2,24 +2,15 @@
 
 pragma solidity ^0.8.0;
 
+import "@src/interfaces/IGroth16Verifier.sol";
+
 /// @title Groth16 verifier template.
 /// @author Remco Bloemen
 /// @notice Supports verifying Groth16 proofs. Proofs can be in uncompressed
 /// (256 bytes) and compressed (128 bytes) format. A view function is provided
 /// to compress proofs.
 /// @notice See <https://2π.com/23/bn254-compression> for further explanation.
-contract Verifier {
-    /// Some of the provided public input values are larger than the field modulus.
-    /// @dev Public input elements are not automatically reduced, as this is can be
-    /// a dangerous source of bugs.
-    error PublicInputNotInField();
-
-    /// The proof is invalid.
-    /// @dev This can mean that provided Groth16 proof points are not on their
-    /// curves, that pairing equation fails, or that the proof is not for the
-    /// provided public input.
-    error ProofInvalid();
-
+contract Groth16Verifier is IGroth16Verifier {
     // Addresses of precompiles
     uint256 constant PRECOMPILE_MODEXP = 0x05;
     uint256 constant PRECOMPILE_ADD = 0x06;
@@ -259,11 +250,12 @@ contract Verifier {
     /// @param y1 The imaginary part of the Y coordinate.
     /// @return c0 The first half of the compresed point (x0 with two signal bits).
     /// @return c1 The second half of the compressed point (x1 unmodified).
-    function compress_g2(uint256 x0, uint256 x1, uint256 y0, uint256 y1)
-        internal
-        view
-        returns (uint256 c0, uint256 c1)
-    {
+    function compress_g2(
+        uint256 x0,
+        uint256 x1,
+        uint256 y0,
+        uint256 y1
+    ) internal view returns (uint256 c0, uint256 c1) {
         if (x0 >= P || x1 >= P || y0 >= P || y1 >= P) {
             // G2 point not in field.
             revert ProofInvalid();
@@ -318,11 +310,10 @@ contract Verifier {
     /// @return x1 The imaginary poart of the X coordinate.
     /// @return y0 The real part of the Y coordinate.
     /// @return y1 The imaginary part of the Y coordinate.
-    function decompress_g2(uint256 c0, uint256 c1)
-        internal
-        view
-        returns (uint256 x0, uint256 x1, uint256 y0, uint256 y1)
-    {
+    function decompress_g2(
+        uint256 c0,
+        uint256 c1
+    ) internal view returns (uint256 x0, uint256 x1, uint256 y0, uint256 y1) {
         // Note that X = (0, 0) is not on the curve since 0³ + 3/(9 + i) is not a square.
         // so we can use it to represent the point at infinity.
         if (c0 == 0 && c1 == 0) {

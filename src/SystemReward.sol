@@ -39,10 +39,13 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
         }
     }
 
-    function claimRewards(
-        address payable to,
-        uint256 amount
-    ) external override(ISystemReward) doInit onlyAuthorizedCaller returns (uint256) {
+    function claimRewards(address payable to, uint256 amount)
+        external
+        override(ISystemReward)
+        doInit
+        onlyAuthorizedCaller
+        returns (uint256)
+    {
         uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
         if (actualAmount > MAX_REWARDS) {
             actualAmount = MAX_REWARDS;

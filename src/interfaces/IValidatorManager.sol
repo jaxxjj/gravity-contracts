@@ -14,7 +14,6 @@ interface IValidatorManager is IReconfigurableModule {
         ACTIVE, // 1
         PENDING_INACTIVE, // 2
         INACTIVE // 3
-
     }
 
     // 验证者角色结构
@@ -54,7 +53,6 @@ interface IValidatorManager is IReconfigurableModule {
 
     // 在接口中定义ValidatorSetData结构
     struct ValidatorSetData {
-        uint8 consensusScheme; // 共识方案
         uint128 totalVotingPower; // 总投票权重
         uint128 totalJoiningPower; // 等待加入的总权重
     }
@@ -75,7 +73,10 @@ interface IValidatorManager is IReconfigurableModule {
 
     /// 验证者注册相关事件
     event ValidatorRegistered(
-        address indexed validator, address indexed operator, bytes consensusPublicKey, string moniker
+        address indexed validator,
+        address indexed operator,
+        bytes consensusPublicKey,
+        string moniker
     );
 
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);
