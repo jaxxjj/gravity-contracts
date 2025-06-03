@@ -65,7 +65,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     /**
      * @dev 初始化函数
      */
-    function initialize() external initializer {
+    function initialize() external initializer onlyGenesis {
         maxSignaturesPerTxn = 10;
         maxExpHorizonSecs = 3600; // 1 hour
         maxCommittedEpkBytes = 93;

@@ -54,7 +54,7 @@ contract Genesis is System {
         _initializeJWK();
 
         // 5. 初始化Block合约
-        IBlock(BLOCK_ADDR).init();
+        IBlock(BLOCK_ADDR).initialize();
 
         genesisCompleted = true;
 

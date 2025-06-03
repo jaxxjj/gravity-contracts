@@ -13,6 +13,7 @@ contract System {
     address internal constant PERFORMANCE_TRACKER_ADDR = 0x00000000000000000000000000000000000000f1;
     address internal constant EPOCH_MANAGER_ADDR = 0x00000000000000000000000000000000000000f3;
     address internal constant STAKE_CONFIG_ADDR = 0x0000000000000000000000000000000000002008;
+    address internal constant DELEGATION_ADDR = 0x0000000000000000000000000000000000002009;
     address internal constant VALIDATOR_MANAGER_ADDR = 0x0000000000000000000000000000000000002009;
     address internal constant VALIDATOR_PERFORMANCE_TRACKER_ADDR = 0x000000000000000000000000000000000000200b;
     address internal constant BLOCK_ADDR = 0x0000000000000000000000000000000000002003;
@@ -71,6 +72,22 @@ contract System {
 
     modifier onlyBlock() {
         if (msg.sender != BLOCK_ADDR) revert OnlySystemContract(BLOCK_ADDR);
+        _;
+    }
+
+    modifier onlyDelegation() {
+        if (msg.sender != DELEGATION_ADDR) revert OnlySystemContract(DELEGATION_ADDR);
+        _;
+    }
+
+    modifier onlyDelegationOrValidatorManager() {
+        if (msg.sender != DELEGATION_ADDR && msg.sender != VALIDATOR_MANAGER_ADDR)
+            revert OnlySystemContract(msg.sender == DELEGATION_ADDR ? DELEGATION_ADDR : VALIDATOR_MANAGER_ADDR);
+        _;
+    }
+
+    modifier onlyGenesis() {
+        if (msg.sender != GENESIS_ADDR) revert OnlySystemContract(GENESIS_ADDR);
         _;
     }
 

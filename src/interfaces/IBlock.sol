@@ -23,7 +23,7 @@ interface IBlock {
     /**
      * @dev genesis的时候初始化合约
      */
-    function init() external;
+    function initialize() external;
 
     /**
      * @dev 区块开始时调用，执行必要的系统逻辑

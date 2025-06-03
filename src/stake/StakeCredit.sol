@@ -49,37 +49,11 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     // ======== 佣金受益人信息 ========
     address public commissionBeneficiary;
 
+    // ======== Principal跟踪 ========
+    uint256 public validatorPrincipal; // 验证者投入的本金（扣除佣金后）
+
     bool public hasUnlockRequest;
     uint256 public unlockRequestedAt;
-
-    // ======== Delegator状态追踪 ========
-    struct DelegatorStateShares {
-        uint256 activeShares;
-        uint256 inactiveShares;
-        uint256 pendingActiveShares;
-        uint256 pendingInactiveShares;
-    }
-
-    mapping(address => DelegatorStateShares) public delegatorStates;
-
-    // ======== 各状态的总份额追踪 ========
-    uint256 public totalActiveShares;
-    uint256 public totalInactiveShares;
-    uint256 public totalPendingActiveShares;
-    uint256 public totalPendingInactiveShares;
-
-    // ======== 状态一致性修饰符 ========
-    modifier stateConsistencyCheck() {
-        _;
-        uint256 totalStates = active + inactive + pendingActive + pendingInactive;
-        require(totalStates == address(this).balance, "State inconsistency");
-    }
-
-    // 同步修饰符，确保在任何操作前delegator状态已同步
-    modifier syncDelegatorState(address delegator) {
-        _syncDelegatorState(delegator);
-        _;
-    }
 
     constructor() {
         _disableInitializers();
@@ -163,6 +137,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
         // 更新四状态余额
         active = initialAmount; // 所有初始质押进入active状态
+
+        // 初始化principal
+        validatorPrincipal = initialAmount;
     }
 
     /**
@@ -170,51 +147,29 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param delegator 委托人地址
      * @return shares 铸造的份额数量
      */
-    function delegate(
-        address delegator
-    ) external payable onlyValidatorManager stateConsistencyCheck returns (uint256 shares) {
+    function delegate(address delegator) external payable onlyDelegationOrValidatorManager returns (uint256 shares) {
         if (msg.value == 0) revert ZeroAmount();
 
-        // 份额计算
-        shares = _calculateShares(msg.value);
-
-        // 更新状态 - 使用验证者状态判断
-        bool isCurrentValidator = _isCurrentEpochValidator();
-
-        // 如果验证者是当前epoch验证者，新质押进入pending_active
-        // 否则直接进入active（验证者不在当前epoch中）
-        if (isCurrentValidator) {
-            pendingActive += msg.value;
-            // 更新delegator的pendingActive份额
-            delegatorStates[delegator].pendingActiveShares += shares;
-            // 更新总pendingActive份额
-            totalPendingActiveShares += shares;
-        } else {
-            active += msg.value;
-            // 更新delegator的active份额
-            delegatorStates[delegator].activeShares += shares;
-            // 更新总active份额
-            totalActiveShares += shares;
-        }
-
-        // 铸造份额并发出事件
-        _mint(delegator, shares);
-        emit StakeAdded(delegator, shares, msg.value);
-
-        return shares;
-    }
-
-    /**
-     * @dev 计算质押对应的份额
-     * @param amount 质押金额
-     * @return 份额数量
-     */
-    function _calculateShares(uint256 amount) private view returns (uint256) {
+        // 计算份额（基于当前池子总值）
         uint256 totalPooled = getTotalPooledG();
         if (totalSupply() == 0 || totalPooled == 0) {
-            return amount;
+            shares = msg.value;
+        } else {
+            shares = (msg.value * totalSupply()) / totalPooled;
         }
-        return (amount * totalSupply()) / totalPooled;
+
+        // 更新状态
+        if (_isCurrentEpochValidator()) {
+            pendingActive += msg.value;
+        } else {
+            active += msg.value;
+        }
+
+        // 铸造份额
+        _mint(delegator, shares);
+
+        emit StakeAdded(delegator, shares, msg.value);
+        return shares;
     }
 
     /**
@@ -243,57 +198,30 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     function unlock(
         address delegator,
         uint256 shares
-    ) external onlyValidatorManager stateConsistencyCheck returns (uint256 gAmount) {
+    ) external onlyDelegationOrValidatorManager returns (uint256 gAmount) {
         // 基础验证
-        _validateUnlock(delegator, shares);
+        if (shares == 0) revert ZeroShares();
+        if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
         // 计算G数量
         gAmount = getPooledGByShares(shares);
 
-        // 获取delegator的状态份额
-        DelegatorStateShares storage delegatorState = delegatorStates[delegator];
+        // 简单的状态转换逻辑：优先从active中扣除
+        uint256 totalActive = active + pendingActive;
+        if (gAmount > totalActive) revert InsufficientActiveStake();
 
-        // 按比例从各状态中扣除份额
-        uint256 totalDelegatorShares = balanceOf(delegator);
-        uint256 sharesToUnlock = shares;
-
-        // 优先从active份额中扣除
-        if (delegatorState.activeShares > 0) {
-            uint256 activeSharesRatio = (delegatorState.activeShares * shares) / totalDelegatorShares;
-            uint256 activeToUnlock = activeSharesRatio > delegatorState.activeShares
-                ? delegatorState.activeShares
-                : activeSharesRatio;
-
-            delegatorState.activeShares -= activeToUnlock;
-            delegatorState.pendingInactiveShares += activeToUnlock;
-            totalActiveShares -= activeToUnlock;
-            totalPendingInactiveShares += activeToUnlock;
-            sharesToUnlock -= activeToUnlock;
-
-            // 从active状态移动相应的G到pending_inactive
-            uint256 activeGAmount = totalActiveShares > 0 ? (activeToUnlock * active) / totalActiveShares : active;
-            active -= activeGAmount;
-            pendingInactive += activeGAmount;
+        if (active >= gAmount) {
+            active -= gAmount;
+        } else {
+            // 需要从active和pendingActive中扣除
+            uint256 fromActive = active;
+            uint256 fromPendingActive = gAmount - fromActive;
+            active = 0;
+            pendingActive -= fromPendingActive;
         }
 
-        // 如果还有剩余，从pendingActive份额中扣除
-        if (sharesToUnlock > 0 && delegatorState.pendingActiveShares > 0) {
-            uint256 pendingActiveToUnlock = sharesToUnlock > delegatorState.pendingActiveShares
-                ? delegatorState.pendingActiveShares
-                : sharesToUnlock;
-
-            delegatorState.pendingActiveShares -= pendingActiveToUnlock;
-            delegatorState.pendingInactiveShares += pendingActiveToUnlock;
-            totalPendingActiveShares -= pendingActiveToUnlock;
-            totalPendingInactiveShares += pendingActiveToUnlock;
-
-            // 从pendingActive状态移动相应的G到pending_inactive
-            uint256 pendingActiveGAmount = totalPendingActiveShares > 0
-                ? (pendingActiveToUnlock * pendingActive) / totalPendingActiveShares
-                : pendingActive;
-            pendingActive -= pendingActiveGAmount;
-            pendingInactive += pendingActiveGAmount;
-        }
+        // 移到pending_inactive状态
+        pendingInactive += gAmount;
 
         // 销毁份额
         _burn(delegator, shares);
@@ -310,48 +238,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /**
-     * @dev 验证解锁操作的基础条件
-     */
-    function _validateUnlock(address delegator, uint256 shares) private view {
-        if (shares == 0) revert ZeroShares();
-        if (shares > balanceOf(delegator)) revert InsufficientBalance();
-    }
-
-    /**
-     * @dev 处理解锁的状态更新
-     */
-    function _processUnlockState(uint256 gAmount) private {
-        // 确保有足够的活跃资金可以解锁
-        uint256 totalActive = active + pendingActive;
-        if (gAmount > totalActive) revert InsufficientActiveStake();
-
-        // 从active状态中减少资金
-        if (active >= gAmount) {
-            active -= gAmount;
-        } else {
-            uint256 fromActive = active;
-            uint256 fromPendingActive = gAmount - fromActive;
-
-            active = 0;
-            if (pendingActive >= fromPendingActive) {
-                pendingActive -= fromPendingActive;
-            } else {
-                revert InsufficientBalance();
-            }
-        }
-
-        // 移到pending_inactive状态
-        pendingInactive += gAmount;
-
-        // 标记解锁请求
-        if (!hasUnlockRequest) {
-            hasUnlockRequest = true;
-            unlockRequestedAt = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-            emit UnlockRequestCreated(unlockRequestedAt);
-        }
-    }
-
-    /**
      * @dev 提取已解锁的资金
      * @param delegator 委托人地址
      * @param amount 要提取的具体金额（0表示提取全部可用）
@@ -360,37 +246,34 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     function withdraw(
         address payable delegator,
         uint256 amount
-    ) external onlyValidatorManager nonReentrant stateConsistencyCheck returns (uint256 withdrawnAmount) {
+    ) external onlyDelegationOrValidatorManager nonReentrant returns (uint256 withdrawnAmount) {
         // 只能从inactive状态提取
         if (inactive == 0) revert NoWithdrawableAmount();
 
-        // 获取delegator的inactive份额
-        DelegatorStateShares storage delegatorState = delegatorStates[delegator];
-        if (delegatorState.inactiveShares == 0) revert NoWithdrawableAmount();
+        // 计算delegator的总价值
+        uint256 delegatorTotalValue = getPooledGByShares(balanceOf(delegator));
+        if (delegatorTotalValue == 0) revert NoWithdrawableAmount();
 
-        // 计算delegator可提取的金额
-        uint256 delegatorInactiveAmount = getPooledGByShares(delegatorState.inactiveShares);
+        // 计算delegator在inactive池中的份额比例对应的金额
+        uint256 totalPooled = getTotalPooledG();
+        uint256 delegatorInactiveAmount = (delegatorTotalValue * inactive) / totalPooled;
         if (delegatorInactiveAmount == 0) revert NoWithdrawableAmount();
 
         // 如果amount为0或大于可提取金额，则设置为最大可提取金额
         if (amount == 0 || amount > delegatorInactiveAmount) {
             amount = delegatorInactiveAmount;
         }
+        withdrawnAmount = amount;
 
         // 计算要销毁的份额
-        withdrawnAmount = amount;
         uint256 sharesToBurn = getSharesByPooledG(amount);
-
-        // 再次检查份额是否足够（安全检查）
-        if (sharesToBurn > delegatorState.inactiveShares) {
-            sharesToBurn = delegatorState.inactiveShares;
+        if (sharesToBurn > balanceOf(delegator)) {
+            sharesToBurn = balanceOf(delegator);
             withdrawnAmount = getPooledGByShares(sharesToBurn);
         }
 
         // 更新状态
         inactive -= withdrawnAmount;
-        delegatorState.inactiveShares -= sharesToBurn;
-        totalInactiveShares -= sharesToBurn;
 
         // 销毁对应份额
         _burn(delegator, sharesToBurn);
@@ -409,7 +292,10 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param shares 要解绑的份额数量
      * @return gAmount 解绑的G数量
      */
-    function unbond(address delegator, uint256 shares) external onlyValidatorManager returns (uint256 gAmount) {
+    function unbond(
+        address delegator,
+        uint256 shares
+    ) external onlyDelegationOrValidatorManager returns (uint256 gAmount) {
         if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
@@ -449,7 +335,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     function reactivateStake(
         address delegator,
         uint256 shares
-    ) external onlyValidatorManager returns (uint256 gAmount) {
+    ) external onlyDelegationOrValidatorManager returns (uint256 gAmount) {
         if (shares == 0) revert ZeroShares();
         if (pendingInactive == 0) revert NoWithdrawableAmount();
 
@@ -483,80 +369,70 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param commissionRate 佣金率
      */
     function distributeReward(uint64 commissionRate) external payable onlyValidatorManager {
-        uint256 gAmount = msg.value;
-        uint256 commission = (gAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
-        uint256 reward = gAmount - commission;
+        uint256 totalReward = msg.value;
 
-        uint256 index = ITimestamp(TIMESTAMP_ADDR).nowSeconds() / 86400; // 使用ITimestamp
-        totalPooledGRecord[index] = getTotalPooledG();
-        rewardRecord[index] += reward;
+        // 计算累积奖励（基于principal的增长）
+        uint256 totalStake = getTotalPooledG();
+        uint256 accumulatedRewards = totalStake > validatorPrincipal ? totalStake - validatorPrincipal : 0;
 
-        // 立即分配奖励到eligible状态（active和pendingInactive）
-        uint256 totalEligible = active + pendingInactive;
-        if (totalEligible > 0) {
-            uint256 activeReward = (reward * active) / totalEligible;
-            uint256 pendingInactiveReward = reward - activeReward;
+        // 计算本次奖励应得的佣金
+        uint256 newRewards = totalReward;
+        uint256 totalRewardsWithAccumulated = accumulatedRewards + newRewards;
+        uint256 commission = (totalRewardsWithAccumulated * uint256(commissionRate)) / COMMISSION_RATE_BASE;
 
-            active += activeReward;
-            pendingInactive += pendingInactiveReward;
+        // 限制佣金不超过新奖励
+        if (commission > accumulatedRewards) {
+            commission = commission - accumulatedRewards;
         } else {
-            // 如果没有eligible状态的质押，奖励全部进入active
-            active += reward;
+            commission = 0;
         }
 
-        // 为佣金受益人铸造佣金份额
+        // 更新principal（扣除佣金后的新本金）
+        validatorPrincipal = totalStake + totalReward - commission;
+
+        // 奖励直接加到active，让所有份额持有者受益
+        active += totalReward;
+
+        // 为佣金受益人铸造佣金份额（稀释其他人）
         if (commission > 0) {
-            uint256 totalPooled = getTotalPooledG();
-            uint256 commissionShares = totalSupply() > 0 ? (commission * totalSupply()) / totalPooled : commission;
-
-            // 获取佣金受益人地址，如果未设置则默认为validator
             address beneficiary = commissionBeneficiary == address(0) ? validator : commissionBeneficiary;
-
+            uint256 commissionShares = (commission * totalSupply()) / (totalStake + totalReward);
             _mint(beneficiary, commissionShares);
-
-            // 佣金直接加到active中
-            active += commission;
         }
 
-        emit RewardReceived(reward, commission);
+        // 记录奖励
+        uint256 index = ITimestamp(TIMESTAMP_ADDR).nowSeconds() / 86400;
+        totalPooledGRecord[index] = getTotalPooledG();
+        rewardRecord[index] += totalReward - commission;
+
+        emit RewardReceived(totalReward - commission, commission);
     }
 
     /**
      * @dev 处理epoch转换 (对应Aptos on_new_epoch中的StakePool更新)
      */
-    function onNewEpoch() external onlyValidatorManager stateConsistencyCheck {
+    function onNewEpoch() external onlyValidatorManager {
         uint256 oldActive = active;
         uint256 oldInactive = inactive;
         uint256 oldPendingActive = pendingActive;
         uint256 oldPendingInactive = pendingInactive;
 
-        // 保存epoch转换的时间戳，用于延迟处理
-        uint256 epochTransitionTimestamp = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-
-        // 1. pending_active -> active (新质押生效)
+        // 1. pending_active -> active
         active += pendingActive;
         pendingActive = 0;
 
-        // 2. 处理解锁请求，将pending_inactive -> inactive
-        bool processed = false;
+        // 2. 处理解锁请求
         if (hasUnlockRequest && pendingInactive > 0) {
-            uint256 amountProcessed = pendingInactive;
             inactive += pendingInactive;
             pendingInactive = 0;
             hasUnlockRequest = false;
             unlockRequestedAt = 0;
-            processed = true;
 
-            emit UnlockRequestProcessed(amountProcessed);
+            emit UnlockRequestProcessed(oldPendingInactive);
         }
 
-        // 3. 验证状态一致性
-        uint256 newTotal = active + inactive + pendingActive + pendingInactive;
-        uint256 oldTotal = oldActive + oldInactive + oldPendingActive + oldPendingInactive;
-        if (newTotal != oldTotal) revert StateTransitionError();
-
-        // 存储本次epoch转换信息，用于延迟处理
-        lastEpochTransition = EpochTransitionInfo({ timestamp: epochTransitionTimestamp, unlockProcessed: processed });
+        // 不需要遍历delegator或分配奖励
+        // 奖励已经在distributeReward时通过增加active实现了
 
         emit EpochTransitioned(
             oldActive,
@@ -568,48 +444,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             pendingActive,
             pendingInactive
         );
-    }
-
-    // 存储上次epoch转换的信息
-    struct EpochTransitionInfo {
-        uint256 timestamp;
-        bool unlockProcessed;
-    }
-
-    EpochTransitionInfo public lastEpochTransition;
-
-    /**
-     * @dev 批量处理delegator状态转换
-     * @param delegators 要处理的delegator地址数组
-     */
-    function processDelegatorStates(address[] calldata delegators) external onlyValidatorManager {
-        for (uint256 i = 0; i < delegators.length; i++) {
-            _processDelegatorState(delegators[i]);
-        }
-    }
-
-    /**
-     * @dev 处理单个delegator的状态转换
-     * @param delegator delegator地址
-     */
-    function _processDelegatorState(address delegator) internal {
-        DelegatorStateShares storage state = delegatorStates[delegator];
-
-        // pending_active -> active
-        if (state.pendingActiveShares > 0) {
-            state.activeShares += state.pendingActiveShares;
-            totalActiveShares += state.pendingActiveShares;
-            totalPendingActiveShares -= state.pendingActiveShares;
-            state.pendingActiveShares = 0;
-        }
-
-        // pending_inactive -> inactive (如果已处理)
-        if (!hasUnlockRequest && state.pendingInactiveShares > 0) {
-            state.inactiveShares += state.pendingInactiveShares;
-            totalInactiveShares += state.pendingInactiveShares;
-            totalPendingInactiveShares -= state.pendingInactiveShares;
-            state.pendingInactiveShares = 0;
-        }
     }
 
     /**
@@ -760,32 +594,5 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      */
     function getUnlockRequestStatus() external view returns (bool hasRequest, uint256 requestedAt) {
         return (hasUnlockRequest, unlockRequestedAt);
-    }
-
-    /**
-     * @dev 同步单个delegator的状态
-     * @param delegator delegator地址
-     */
-    function _syncDelegatorState(address delegator) internal {
-        DelegatorStateShares storage state = delegatorStates[delegator];
-
-        // 检查是否需要同步
-        if (lastEpochTransition.timestamp > 0) {
-            // 1. 处理pending_active -> active转换
-            if (state.pendingActiveShares > 0) {
-                state.activeShares += state.pendingActiveShares;
-                totalActiveShares += state.pendingActiveShares;
-                totalPendingActiveShares -= state.pendingActiveShares;
-                state.pendingActiveShares = 0;
-            }
-
-            // 2. 处理pending_inactive -> inactive转换(如果解锁已处理)
-            if (lastEpochTransition.unlockProcessed && state.pendingInactiveShares > 0) {
-                state.inactiveShares += state.pendingInactiveShares;
-                totalInactiveShares += state.pendingInactiveShares;
-                totalPendingInactiveShares -= state.pendingInactiveShares;
-                state.pendingInactiveShares = 0;
-            }
-        }
     }
 }

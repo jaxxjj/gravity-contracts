@@ -85,7 +85,7 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     /**
      * @dev 初始化函数，替代构造函数用于代理模式，设置默认配置值 (对应Aptos初始化参数)
      */
-    function initialize() public initializer onlySystemCaller {
+    function initialize() public initializer onlyGenesis {
         // 质押参数 (对应Aptos StakingConfig默认值)
         minValidatorStake = 1000 ether; // 对应Aptos minimum_stake
         maximumStake = 1000000 ether; // 对应Aptos maximum_stake

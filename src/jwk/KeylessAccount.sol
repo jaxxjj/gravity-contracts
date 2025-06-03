@@ -50,7 +50,7 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
     /**
      * @dev 初始化函数
      */
-    function initialize() external override initializer onlySystemCaller {
+    function initialize() external override initializer onlyGenesis {
         // 使用硬编码默认值初始化
         configuration = Configuration({
             max_signatures_per_txn: 16,

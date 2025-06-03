@@ -46,7 +46,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
     /**
      * @dev 初始化函数，替代构造函数用于代理模式
      */
-    function initialize() external initializer {
+    function initialize() external initializer onlyGenesis {
         currentEpoch = 0;
         epochIntervalMicrosecs = 2 hours * MICRO_CONVERSION_FACTOR;
         lastEpochTransitionTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();

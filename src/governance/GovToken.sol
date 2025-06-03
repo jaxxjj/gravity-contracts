@@ -28,7 +28,7 @@ contract GovToken is
     mapping(address => mapping(address => uint256)) public mintedMap;
 
     /*----------------- init -----------------*/
-    function initialize() public initializer onlySystemCaller {
+    function initialize() public initializer onlyGenesis {
         __ERC20_init(NAME, SYMBOL);
         __ERC20Burnable_init();
         __ERC20Permit_init(NAME);

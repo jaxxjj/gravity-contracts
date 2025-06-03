@@ -7,14 +7,14 @@ import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/ITimestamp.sol";
 import "@src/interfaces/IBlock.sol";
+import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 
-contract Block is System, IBlock {
+contract Block is System, IBlock, Initializable {
     /**
      * @dev genesis的时候初始化合约 只能由system调用
      */
-    function init() external onlyNotInit onlySystemCaller {
-        emitGenesisBlockEvent();
-        alreadyInit = true;
+    function initialize() external initializer onlyGenesis {
+        _emitGenesisBlockEvent();
     }
 
     /**
@@ -74,7 +74,7 @@ contract Block is System, IBlock {
      * @dev 发射创世区块事件。这个函数将在创世时直接调用，以生成第一个重配置事件。
      * 对应Aptos emit_genesis_block_event函数
      */
-    function emitGenesisBlockEvent() private {
+    function _emitGenesisBlockEvent() private {
         address genesisId = address(0);
         uint64[] memory emptyFailedProposerIndices = new uint64[](0);
 

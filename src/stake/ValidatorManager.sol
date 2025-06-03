@@ -119,7 +119,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address payable[] calldata feeAddresses,
         uint64[] calldata votingPowers,
         bytes[] calldata voteAddresses
-    ) external onlySystemCaller {
+    ) external onlyGenesis {
         if (initialized) revert AlreadyInitialized();
 
         require(consensusAddresses.length == feeAddresses.length, "Array length mismatch");

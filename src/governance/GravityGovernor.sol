@@ -66,7 +66,7 @@ contract GravityGovernor is
     mapping(address => uint256) public latestProposalIds;
 
     /*----------------- init -----------------*/
-    function initialize() external initializer onlySystemCaller {
+    function initialize() external initializer onlyGenesis {
         __Governor_init("GravityGovernor");
         __GovernorSettings_init(INIT_VOTING_DELAY, INIT_VOTING_PERIOD, INIT_PROPOSAL_THRESHOLD);
         __GovernorVotes_init(IVotes(GOV_TOKEN_ADDR));
