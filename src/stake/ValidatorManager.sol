@@ -452,26 +452,25 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
         uint64 minStakeRequired = uint64(IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake());
 
-        // 1. 先进行验证者状态转换
-        // 1.1 激活pending_active验证者
-        _activatePendingValidators(currentEpoch);
-
-        // 1.2 移除pending_inactive验证者
-        _removePendingInactiveValidators(currentEpoch);
-
-        // 2. 处理所有相关验证者的StakeCredit合约的epoch转换
+        // 1. 先处理所有StakeCredit的状态转换（让pending_active变成active）
         _processAllStakeCreditsNewEpoch();
 
-        // 3. 分发奖励 (基于性能和累积的区块奖励)
+        // 2. 然后激活pending_active验证者（基于更新后的stake数据）
+        _activatePendingValidators(currentEpoch);
+
+        // 3. 移除pending_inactive验证者
+        _removePendingInactiveValidators(currentEpoch);
+
+        // 4. 分发奖励（基于更新后的状态）
         _distributeRewards();
 
-        // 4. 重新计算验证者集合 (基于最新的质押情况)
+        // 5. 重新计算验证者集合（基于最新的质押情况）
         _recalculateValidatorSet(minStakeRequired, currentEpoch);
 
-        // 5. 通知ValidatorPerformanceTracker合约
+        // 6. 通知ValidatorPerformanceTracker合约
         IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).onNewEpoch();
 
-        // 6. 重置加入权重
+        // 7. 重置加入权重
         validatorSetData.totalJoiningPower = 0;
 
         emit ValidatorSetUpdated(
