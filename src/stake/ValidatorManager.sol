@@ -466,7 +466,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 新epoch处理（对应Aptos stake.move中on_new_epoch的验证者集合更新部分）
      */
-    function onNewEpoch() external onlyStakeHub {
+    function onNewEpoch() external onlyEpochManager {
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
         uint64 minStakeRequired = uint64(IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake());
 

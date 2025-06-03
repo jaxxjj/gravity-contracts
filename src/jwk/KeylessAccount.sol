@@ -175,9 +175,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
 
             // 使用哈希值在ConfigParamUpdated事件中表示bytes变化
             emit ConfigParamUpdated(
-                "trainingWheels",
-                uint256(keccak256(oldPublicKey)),
-                uint256(keccak256(newPublicKey))
+                "trainingWheels", uint256(keccak256(oldPublicKey)), uint256(keccak256(newPublicKey))
             );
         } else if (Strings.equal(key, "addOverrideAud")) {
             string memory newAud = abi.decode(value, (string));

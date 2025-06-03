@@ -118,7 +118,11 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * @return lastTransitionTime 上次epoch转换时间
      * @return interval epoch持续时间（微秒）
      */
-    function getCurrentEpochInfo() external view returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval) {
+    function getCurrentEpochInfo()
+        external
+        view
+        returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval)
+    {
         return (currentEpoch, lastEpochTransitionTime, epochIntervalMicrosecs);
     }
 
@@ -142,7 +146,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * 使用SystemV2中定义的固定地址常量
      */
     function _notifySystemModules() internal {
-        _safeNotifyModule(STAKE_HUB_ADDR);
+        _safeNotifyModule(VALIDATOR_MANAGER_ADDR);
         _safeNotifyModule(GOVERNOR_ADDR);
     }
 
@@ -152,7 +156,8 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      */
     function _safeNotifyModule(address moduleAddress) internal {
         if (moduleAddress != address(0)) {
-            try IReconfigurableModule(moduleAddress).onNewEpoch() {} catch Error(string memory reason) {
+            try IReconfigurableModule(moduleAddress).onNewEpoch() {}
+            catch Error(string memory reason) {
                 emit ModuleNotificationFailed(moduleAddress, bytes(reason));
             } catch (bytes memory lowLevelData) {
                 emit ModuleNotificationFailed(moduleAddress, lowLevelData);

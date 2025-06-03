@@ -114,7 +114,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @dev 新epoch处理（对应Aptos stake.move中on_new_epoch的性能处理部分）
      * 重置性能统计，更新验证者集合
      */
-    function onNewEpoch() external onlyStakeHub {
+    function onNewEpoch() external onlyValidatorManager {
         // 验证epoch顺序
         uint256 currentEpoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 

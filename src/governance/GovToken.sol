@@ -41,7 +41,7 @@ contract GovToken is
      * @param stakeCredit the stakeCredit Token contract
      * @param account the account to sync gov tokens to
      */
-    function sync(address stakeCredit, address account) external onlyStakeHub {
+    function sync(address stakeCredit, address account) external onlyValidatorManager {
         _sync(stakeCredit, account);
     }
 
@@ -50,7 +50,7 @@ contract GovToken is
      * @param stakeCredits the stakeCredit Token contracts
      * @param account the account to sync gov tokens to
      */
-    function syncBatch(address[] calldata stakeCredits, address account) external onlyStakeHub {
+    function syncBatch(address[] calldata stakeCredits, address account) external onlyValidatorManager {
         uint256 _length = stakeCredits.length;
         for (uint256 i = 0; i < _length; ++i) {
             _sync(stakeCredits[i], account);
@@ -62,7 +62,7 @@ contract GovToken is
      * @param delegator the delegator
      * @param delegatee the delegatee
      */
-    function delegateVote(address delegator, address delegatee) external onlyStakeHub {
+    function delegateVote(address delegator, address delegatee) external onlyValidatorManager {
         _delegate(delegator, delegatee);
     }
 

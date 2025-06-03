@@ -15,7 +15,6 @@ contract System {
     address internal constant STAKE_CONFIG_ADDR = 0x0000000000000000000000000000000000002008;
     address internal constant VALIDATOR_MANAGER_ADDR = 0x0000000000000000000000000000000000002009;
     address internal constant VALIDATOR_PERFORMANCE_TRACKER_ADDR = 0x000000000000000000000000000000000000200b;
-    address internal constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
     address internal constant BLOCK_ADDR = 0x0000000000000000000000000000000000002003;
     address internal constant TIMESTAMP_ADDR = 0x0000000000000000000000000000000000002004;
 
@@ -106,11 +105,6 @@ contract System {
 
     modifier onlyGovernorTimelock() {
         require(msg.sender == TIMELOCK_ADDR, "the msg sender must be governor timelock contract");
-        _;
-    }
-
-    modifier onlyStakeHub() {
-        if (msg.sender != STAKE_HUB_ADDR) revert OnlySystemContract(STAKE_HUB_ADDR);
         _;
     }
 

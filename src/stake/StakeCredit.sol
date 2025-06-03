@@ -65,7 +65,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev 接收G作为奖励 (对应Aptos distribute_rewards)
      */
-    receive() external payable onlyStakeHub {
+    receive() external payable onlyValidatorManager {
         uint256 index = ITimestamp(TIMESTAMP_ADDR).nowSeconds() / 86400; // 按天索引，使用ITimestamp
         totalPooledGRecord[index] = getTotalPooledG();
         rewardRecord[index] += msg.value;
@@ -157,7 +157,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param delegator 委托人地址
      * @return shares 铸造的份额数量
      */
-    function delegate(address delegator) external payable onlyStakeHub returns (uint256 shares) {
+    function delegate(address delegator) external payable onlyValidatorManager returns (uint256 shares) {
         if (msg.value == 0) revert ZeroAmount();
 
         // 份额计算
@@ -209,7 +209,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param shares 要解绑的份额数量
      * @return gAmount 解绑的G数量
      */
-    function unlock(address delegator, uint256 shares) external onlyStakeHub returns (uint256 gAmount) {
+    function unlock(address delegator, uint256 shares) external onlyValidatorManager returns (uint256 gAmount) {
         // 基础验证
         _validateUnlock(delegator, shares);
 
@@ -276,7 +276,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      */
     function withdraw(address payable delegator, uint256 amount)
         external
-        onlyStakeHub
+        onlyValidatorManager
         nonReentrant
         returns (uint256 withdrawnAmount)
     {
@@ -327,7 +327,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param shares 要解绑的份额数量
      * @return gAmount 解绑的G数量
      */
-    function unbond(address delegator, uint256 shares) external onlyStakeHub returns (uint256 gAmount) {
+    function unbond(address delegator, uint256 shares) external onlyValidatorManager returns (uint256 gAmount) {
         if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
@@ -364,7 +364,11 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @param shares 要重新激活的份额数量
      * @return gAmount 重新激活的G数量
      */
-    function reactivateStake(address delegator, uint256 shares) external onlyStakeHub returns (uint256 gAmount) {
+    function reactivateStake(address delegator, uint256 shares)
+        external
+        onlyValidatorManager
+        returns (uint256 gAmount)
+    {
         if (shares == 0) revert ZeroShares();
         if (pendingInactive == 0) revert NoWithdrawableAmount();
 
@@ -397,7 +401,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * @dev 分配奖励 (对应Aptos distribute_rewards)
      * @param commissionRate 佣金率
      */
-    function distributeReward(uint64 commissionRate) external payable onlyStakeHub {
+    function distributeReward(uint64 commissionRate) external payable onlyValidatorManager {
         uint256 gAmount = msg.value;
         uint256 commission = (gAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 reward = gAmount - commission;
@@ -429,7 +433,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev 处理epoch转换 (对应Aptos on_new_epoch中的StakePool更新)
      */
-    function onNewEpoch() external onlyStakeHub {
+    function onNewEpoch() external onlyValidatorManager {
         uint256 oldActive = active;
         uint256 oldInactive = inactive;
         uint256 oldPendingActive = pendingActive;
@@ -533,7 +537,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev 强制处理待解除质押 (验证者退出时使用)
      */
-    function forceProcessPendingInactive() external onlyStakeHub {
+    function forceProcessPendingInactive() external onlyValidatorManager {
         if (pendingInactive > 0) {
             inactive += pendingInactive;
             pendingInactive = 0;
