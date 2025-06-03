@@ -3,11 +3,11 @@ pragma solidity 0.8.30;
 
 /**
  * @title IBlock
- * @dev 区块模块接口，定义了区块相关操作和事件
+ * @dev Interface for Block module that defines block-related operations and events
  */
 interface IBlock {
     /**
-     * @dev 新区块事件，记录每个区块的关键信息
+     * @dev New block event that records key information for each block
      */
     event NewBlockEvent(
         address indexed hash,
@@ -21,16 +21,21 @@ interface IBlock {
     );
 
     /**
-     * @dev genesis的时候初始化合约
+     * @dev Error thrown when an invalid proposer is provided
+     */
+    error InvalidProposer(address proposer);
+
+    /**
+     * @dev Initialize the contract during genesis
      */
     function initialize() external;
 
     /**
-     * @dev 区块开始时调用，执行必要的系统逻辑
-     * 对应Aptos block_prologue_common的流程
-     * @param proposer 当前块的提议者地址，如果为SYSTEM_CALLER则表示VM保留地址
-     * @param failedProposerIndices 失败的提议者索引列表
-     * @param timestampMicros 当前块的时间戳（微秒）
+     * @dev Called at the beginning of each block to execute necessary system logic
+     * @param proposer Current block proposer address, SYSTEM_CALLER indicates VM reserved address
+     * @param failedProposerIndices List of failed proposer indices
+     * @param timestampMicros Current block timestamp in microseconds
      */
-    function blockPrologue(address proposer, uint64[] calldata failedProposerIndices, uint256 timestampMicros) external;
+    function blockPrologue(address proposer, uint64[] calldata failedProposerIndices, uint256 timestampMicros)
+        external;
 }

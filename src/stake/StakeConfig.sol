@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.30;
 
 import "@src/System.sol";
 import "@src/interfaces/IStakeConfig.sol";
@@ -9,114 +9,74 @@ import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 
 /**
  * @title StakeConfig
- * @dev 完全对应Aptos staking_config.move的StakingConfig和StakingRewardsConfig
- *
- * 对应Aptos的主要结构：
- * - StakingConfig: 基础质押配置
- * - StakingRewardsConfig: 奖励配置
- * - get_required_stake: 获取质押要求
- * - get_reward_rate: 获取奖励率
- * - calculate_rewards_amount: 计算奖励数量
+ * @dev Contract that manages staking configuration parameters
  */
 contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
-    // ======== 常量定义 (对应Aptos常量) ========
-
-    // 验证者状态常量 (对应Aptos stake.move)
-    uint256 public constant VALIDATOR_STATUS_PENDING_ACTIVE = 1;
-    uint256 public constant VALIDATOR_STATUS_ACTIVE = 2;
-    uint256 public constant VALIDATOR_STATUS_PENDING_INACTIVE = 3;
-    uint256 public constant VALIDATOR_STATUS_INACTIVE = 4;
-
-    // 百分比基数
+    // Constants
     uint256 public constant PERCENTAGE_BASE = 10000; // 100.00%
-
-    // 对应Aptos MAX_REWARDS_RATE
     uint256 public constant MAX_REWARDS_RATE = 1000000;
-
-    // 对应Aptos MAX_U64
     uint128 public constant MAX_U64 = type(uint64).max;
-
-    // 验证者锁定金额 (类似于保证金)
-    uint256 public lockAmount; // 验证者锁定金额 (类似于保证金)
-
-    // 质押系统规定的最大佣金率
     uint256 public constant MAX_COMMISSION_RATE = 5_000;
 
-    // 验证者集合最大大小 (最多45个验证者)
-    uint64 public constant MAX_VALIDATOR_COUNT_LIMIT = 45;
+    // Validator lock amount (security deposit)
+    uint256 public lockAmount;
 
-    // ======== 质押配置参数 (对应Aptos StakingConfig) ========
+    // Staking configuration parameters
+    uint256 public minValidatorStake;
+    uint256 public maximumStake;
+    uint256 public minDelegationStake;
+    uint256 public minDelegationChange;
+    uint256 public redelegateFeeRate;
+    uint256 public maxValidatorCount;
+    uint256 public recurringLockupDuration;
+    bool public allowValidatorSetChange;
+    uint256 public votingPowerIncreaseLimit;
 
-    // 对应Aptos minimum_stake, maximum_stake
-    uint256 public minValidatorStake; // 验证人最低质押量
-    uint256 public maximumStake; // 验证人最大质押量
-    uint256 public minDelegationStake; // 委托人最低质押量
-    uint256 public minDelegationChange; // 委托人最小变更量
-    uint256 public redelegateFeeRate; // 重新委托手续费率
+    // Reward parameters
+    uint256 public rewardsRate;
+    uint256 public rewardsRateDenominator;
 
-    // 对应Aptos max_validator_count
-    uint256 public maxValidatorCount; // 验证人集合的最大大小
+    // Commission parameters
+    uint256 public maxCommissionRate;
+    uint256 public maxCommissionChangeRate;
 
-    // 对应Aptos recurring_lockup_duration_secs
-    uint256 public recurringLockupDuration; // 解绑等待期（秒）
-
-    // 对应Aptos allow_validator_set_change
-    bool public allowValidatorSetChange; // 是否允许验证人加入/离开集合
-
-    // 对应Aptos voting_power_increase_limit
-    uint256 public votingPowerIncreaseLimit; // 每个纪元最大投票权增长百分比
-
-    // 对应Aptos rewards_rate, rewards_rate_denominator
-    uint256 public rewardsRate; // 基础奖励率
-    uint256 public rewardsRateDenominator; // 奖励率分母
-
-    // 佣金相关 (对应Aptos中的commission逻辑)
-    uint256 public maxCommissionRate; // 最大佣金率
-    uint256 public maxCommissionChangeRate; // 最大佣金变更率
-
-    /**
-     * @dev 禁用构造函数
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor() {
         _disableInitializers();
     }
 
-    /**
-     * @dev 初始化函数，替代构造函数用于代理模式，设置默认配置值 (对应Aptos初始化参数)
-     */
+    /// @inheritdoc IStakeConfig
     function initialize() public initializer onlyGenesis {
-        // 质押参数 (对应Aptos StakingConfig默认值)
-        minValidatorStake = 1000 ether; // 对应Aptos minimum_stake
-        maximumStake = 1000000 ether; // 对应Aptos maximum_stake
-        minDelegationStake = 0.1 ether; // 最小委托质押
-        minDelegationChange = 0.1 ether; // 最小委托变更量
-        maxValidatorCount = 100; // 对应Aptos max_validator_count
-        recurringLockupDuration = 14 days; // 对应Aptos recurring_lockup_duration_secs
-        allowValidatorSetChange = true; // 对应Aptos allow_validator_set_change
-        redelegateFeeRate = 2; // 重新委托手续费率(%)
+        // Staking parameters
+        minValidatorStake = 1000 ether;
+        maximumStake = 1000000 ether;
+        minDelegationStake = 0.1 ether;
+        minDelegationChange = 0.1 ether;
+        maxValidatorCount = 100;
+        recurringLockupDuration = 14 days;
+        allowValidatorSetChange = true;
+        redelegateFeeRate = 2; // 0.02%
 
-        // 奖励参数 (对应Aptos StakingRewardsConfig)
+        // Reward parameters
         rewardsRate = 100; // 1.00%
         rewardsRateDenominator = PERCENTAGE_BASE;
 
-        // 投票权限制 (对应Aptos voting_power_increase_limit)
-        votingPowerIncreaseLimit = 2000; // 20.00%每个纪元
+        // Voting power limit
+        votingPowerIncreaseLimit = 2000; // 20.00% per epoch
 
-        // 佣金参数
-        maxCommissionRate = 5000; // 50%最大佣金率
-        maxCommissionChangeRate = 500; // 5%最大变更率
+        // Commission parameters
+        maxCommissionRate = 5000; // 50% maximum commission rate
+        maxCommissionChangeRate = 500; // 5% maximum change rate
 
-        // 设置锁定金额初始值
+        // Lock amount initial value
         lockAmount = 10000 ether;
     }
 
-    /**
-     * @dev 统一参数更新函数
-     * @param key 参数名称
-     * @param value 参数值
-     */
-    function updateParam(string calldata key, bytes calldata value) external override onlyGov {
+    /// @inheritdoc IStakeConfig
+    function updateParam(string calldata key, bytes calldata value)
+        external
+        override(IStakeConfig, IParamSubscriber)
+        onlyGov
+    {
         if (Strings.equal(key, "minValidatorStake")) {
             uint256 newValue = abi.decode(value, (uint256));
             if (newValue == 0) revert StakeConfig__StakeLimitsMustBePositive();
@@ -232,71 +192,52 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
         emit ParamChange(key, value);
     }
 
-    /**
-     * @dev 获取质押要求 (对应Aptos get_required_stake)
-     * @return minimum 最小质押要求
-     * @return maximum 最大质押要求
-     */
+    /// @inheritdoc IStakeConfig
     function getRequiredStake() external view returns (uint256 minimum, uint256 maximum) {
         return (minValidatorStake, maximumStake);
     }
 
-    /**
-     * @dev 获取奖励率 (对应Aptos get_reward_rate)
-     * @return rate 奖励率
-     * @return denominator 奖励率分母
-     */
+    /// @inheritdoc IStakeConfig
     function getRewardRate() external view returns (uint256 rate, uint256 denominator) {
         return (rewardsRate, rewardsRateDenominator);
     }
 
-    /**
-     * @dev 获取当前所有配置参数
-     */
+    /// @inheritdoc IStakeConfig
     function getAllConfigParams() external view returns (ConfigParams memory) {
-        return
-            ConfigParams({
-                minValidatorStake: minValidatorStake,
-                maximumStake: maximumStake,
-                minDelegationStake: minDelegationStake,
-                minDelegationChange: minDelegationChange,
-                maxValidatorCount: maxValidatorCount,
-                recurringLockupDuration: recurringLockupDuration,
-                allowValidatorSetChange: allowValidatorSetChange,
-                rewardsRate: rewardsRate,
-                rewardsRateDenominator: rewardsRateDenominator,
-                votingPowerIncreaseLimit: votingPowerIncreaseLimit,
-                maxCommissionRate: maxCommissionRate,
-                maxCommissionChangeRate: maxCommissionChangeRate,
-                redelegateFeeRate: redelegateFeeRate,
-                lockAmount: lockAmount
-            });
+        return ConfigParams({
+            minValidatorStake: minValidatorStake,
+            maximumStake: maximumStake,
+            minDelegationStake: minDelegationStake,
+            minDelegationChange: minDelegationChange,
+            maxValidatorCount: maxValidatorCount,
+            recurringLockupDuration: recurringLockupDuration,
+            allowValidatorSetChange: allowValidatorSetChange,
+            rewardsRate: rewardsRate,
+            rewardsRateDenominator: rewardsRateDenominator,
+            votingPowerIncreaseLimit: votingPowerIncreaseLimit,
+            maxCommissionRate: maxCommissionRate,
+            maxCommissionChangeRate: maxCommissionChangeRate,
+            redelegateFeeRate: redelegateFeeRate,
+            lockAmount: lockAmount
+        });
     }
 
-    /**
-     * @dev 检查质押金额是否有效
-     */
+    /// @inheritdoc IStakeConfig
     function isValidStakeAmount(uint256 amount) external view returns (bool) {
         return amount >= minValidatorStake && amount <= maximumStake;
     }
 
-    /**
-     * @dev 检查委托金额是否有效
-     */
+    /// @inheritdoc IStakeConfig
     function isValidDelegationAmount(uint256 amount) external view returns (bool) {
         return amount >= minDelegationStake;
     }
 
-    /**
-     * @dev 检查佣金率是否有效
-     */
+    /// @inheritdoc IStakeConfig
     function isValidCommissionRate(uint256 rate) external view returns (bool) {
         return rate <= maxCommissionRate;
     }
 
-    /**
-     * @dev 检查佣金变更是否有效
-     */
+    /// @inheritdoc IStakeConfig
     function isValidCommissionChange(uint256 oldRate, uint256 newRate) external view returns (bool) {
         uint256 change = oldRate > newRate ? oldRate - newRate : newRate - oldRate;
         return change <= maxCommissionChangeRate;

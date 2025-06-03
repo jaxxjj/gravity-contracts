@@ -7,23 +7,23 @@ import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IValidatorPerformanceTracker.sol";
 
 contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
-    /// 当前性能数据 - 将动态数组单独存储
+    /// Current performance data - store dynamic arrays separately
     IndividualValidatorPerformance[] private currentValidators;
 
-    /// 历史epoch的性能记录 - 使用映射存储
+    /// Historical epoch performance records - use mapping for storage
     mapping(uint256 => mapping(uint256 => IndividualValidatorPerformance)) private epochValidatorPerformance;
     mapping(uint256 => uint256) private epochValidatorCount;
 
-    /// 当前活跃验证者列表（按index排序，对应Aptos中的active_validators顺序）
+    /// Current active validator list (sorted by index)
     address[] public activeValidators;
 
-    /// 验证者地址到index的映射（用于快速查找）
+    /// Validator address to index mapping (for quick lookup)
     mapping(address => uint256) public validatorIndex;
 
-    /// 验证者是否存在的标记
+    /// Validator existence flag
     mapping(address => bool) public isActiveValidator;
 
-    /// 是否已初始化
+    /// Initialization flag
     bool private initialized;
 
     modifier validValidatorIndex(uint256 index) {
@@ -33,11 +33,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         _;
     }
 
-    /**
-     * @dev 初始化合约（对应Aptos的initialize函数）
-     * 只能调用一次，设置初始验证者集合
-     * @param initialValidators 初始验证者地址列表
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function initialize(address[] calldata initialValidators) external onlyGenesis {
         if (initialized) revert AlreadyInitialized();
 
@@ -48,35 +44,23 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         }
     }
 
-    /**
-     * @dev 更新验证者性能统计（对应Aptos的update_performance_statistics）
-     * 只能由系统调用
-     *
-     * @param proposerIndex 当前提案者的索引（使用type(uint256).max表示None）
-     * @param failedProposerIndices 失败提案者的索引数组
-     *
-     * 对应Aptos中的函数签名：
-     * public(friend) fun update_performance_statistics(
-     *     proposer_index: Option<u64>,
-     *     failed_proposer_indices: vector<u64>
-     * )
-     */
-    function updatePerformanceStatistics(
-        uint64 proposerIndex,
-        uint64[] calldata failedProposerIndices
-    ) external onlySystemCaller {
-        // 直接从EpochManager获取当前epoch
+    /// @inheritdoc IValidatorPerformanceTracker
+    function updatePerformanceStatistics(uint64 proposerIndex, uint64[] calldata failedProposerIndices)
+        external
+        onlySystemCaller
+    {
+        // Get current epoch directly from EpochManager
         uint256 epoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 
         uint256 validatorCount = currentValidators.length;
 
-        // 处理成功的提案者（对应Aptos中的proposer_index处理）
+        // Handle successful proposer
         if (proposerIndex != type(uint256).max) {
             if (proposerIndex < validatorCount) {
-                // 增加成功提案数
+                // Increment successful proposals
                 currentValidators[proposerIndex].successfulProposals += 1;
 
-                // 发出事件
+                // Emit events
                 emit ProposalResult(activeValidators[proposerIndex], proposerIndex, true, epoch);
 
                 emit PerformanceUpdated(
@@ -89,14 +73,14 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
             }
         }
 
-        // 处理失败的提案者（对应Aptos中的failed_proposer_indices处理）
+        // Handle failed proposers
         for (uint256 i = 0; i < failedProposerIndices.length; i++) {
             uint256 failedIndex = failedProposerIndices[i];
             if (failedIndex < validatorCount) {
-                // 增加失败提案数
+                // Increment failed proposals
                 currentValidators[failedIndex].failedProposals += 1;
 
-                // 发出事件
+                // Emit events
                 emit ProposalResult(activeValidators[failedIndex], failedIndex, false, epoch);
 
                 emit PerformanceUpdated(
@@ -110,59 +94,45 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         }
     }
 
-    /**
-     * @dev 新epoch处理（对应Aptos stake.move中on_new_epoch的性能处理部分）
-     * 重置性能统计，更新验证者集合
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function onNewEpoch() external onlyValidatorManager {
-        // 验证epoch顺序
+        // Verify epoch order
         uint256 currentEpoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 
-        // 保存当前epoch的性能数据到历史记录
+        // Save current epoch performance data to historical records
         _finalizeCurrentEpochPerformance(currentEpoch);
 
-        // 从ValidatorManager获取新的验证者集合（对应Aptos中的validator set更新）
+        // Get new validator set from ValidatorManager
         _updateActiveValidatorSetFromSystem();
 
-        // 重置所有验证者的性能统计（对应Aptos中on_new_epoch的重置逻辑）
+        // Reset all validator performance statistics
         _resetPerformanceStatistics();
 
         emit PerformanceReset(currentEpoch, activeValidators.length);
     }
 
-    /**
-     * @dev 手动更新验证者集合（用于中途更新验证者列表）
-     * @param newValidators 新的验证者列表
-     * @param epoch 当前epoch
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function updateActiveValidatorSet(address[] calldata newValidators, uint256 epoch) external onlySystemCaller {
         _updateActiveValidatorSet(newValidators, epoch);
     }
 
-    /**
-     * @dev 获取当前epoch的提案统计（对应Aptos的get_current_epoch_proposal_counts）
-     * @param validatorIdx 验证者索引
-     * @return successful 成功提案数
-     * @return failed 失败提案数
-     */
-    function getCurrentEpochProposalCounts(
-        uint256 validatorIdx
-    ) external view validValidatorIndex(validatorIdx) returns (uint64 successful, uint64 failed) {
+    /// @inheritdoc IValidatorPerformanceTracker
+    function getCurrentEpochProposalCounts(uint256 validatorIdx)
+        external
+        view
+        validValidatorIndex(validatorIdx)
+        returns (uint64 successful, uint64 failed)
+    {
         IndividualValidatorPerformance memory perf = currentValidators[validatorIdx];
         return (perf.successfulProposals, perf.failedProposals);
     }
 
-    /**
-     * @dev 根据地址获取验证者性能（自定义查询函数）
-     * @param validator 验证者地址
-     * @return successful 成功提案数
-     * @return failed 失败提案数
-     * @return index 验证者索引
-     * @return exists 验证者是否存在
-     */
-    function getValidatorPerformance(
-        address validator
-    ) external view returns (uint64 successful, uint64 failed, uint256 index, bool exists) {
+    /// @inheritdoc IValidatorPerformanceTracker
+    function getValidatorPerformance(address validator)
+        external
+        view
+        returns (uint64 successful, uint64 failed, uint256 index, bool exists)
+    {
         if (!isActiveValidator[validator]) {
             return (0, 0, 0, false);
         }
@@ -172,17 +142,12 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         return (perf.successfulProposals, perf.failedProposals, index, true);
     }
 
-    /**
-     * @dev 获取历史epoch的性能数据
-     * @param epoch epoch编号
-     * @param validatorIdx 验证者索引
-     * @return successful 成功提案数
-     * @return failed 失败提案数
-     */
-    function getHistoricalPerformance(
-        uint256 epoch,
-        uint256 validatorIdx
-    ) external view returns (uint64 successful, uint64 failed) {
+    /// @inheritdoc IValidatorPerformanceTracker
+    function getHistoricalPerformance(uint256 epoch, uint256 validatorIdx)
+        external
+        view
+        returns (uint64 successful, uint64 failed)
+    {
         uint256 currentEpoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
         require(epoch <= currentEpoch, "Future epoch not accessible");
 
@@ -199,36 +164,22 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         }
     }
 
-    /**
-     * @dev 获取当前所有验证者地址
-     * @return 验证者地址数组
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function getCurrentValidators() external view returns (address[] memory) {
         return activeValidators;
     }
 
-    /**
-     * @dev 获取当前验证者总数
-     * @return 验证者数量
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function getCurrentValidatorCount() external view returns (uint256) {
         return activeValidators.length;
     }
 
-    /**
-     * @dev 检查地址是否为活跃验证者
-     * @param validator 验证者地址
-     * @return 是否为活跃验证者
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function isValidator(address validator) external view returns (bool) {
         return isActiveValidator[validator];
     }
 
-    /**
-     * @dev 获取当前验证者的完整性能数据
-     * @return validators 验证者地址数组
-     * @return performances 对应的性能数据数组
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function getCurrentPerformanceData()
         external
         view
@@ -244,11 +195,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         return (validators, performances);
     }
 
-    /**
-     * @dev 计算验证者成功率
-     * @param validator 验证者地址
-     * @return successRate 成功率（基点表示，10000 = 100%）
-     */
+    /// @inheritdoc IValidatorPerformanceTracker
     function getValidatorSuccessRate(address validator) external view returns (uint256 successRate) {
         if (!isActiveValidator[validator]) {
             return 0;
@@ -265,17 +212,8 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         return (uint256(perf.successfulProposals) * 10000) / uint256(total);
     }
 
-    /**
-     * @dev 获取epoch的整体统计信息
-     * @param epoch epoch编号（使用type(uint256).max表示当前epoch）
-     * @return totalValidators 验证者总数
-     * @return totalSuccessful 总成功提案数
-     * @return totalFailed 总失败提案数
-     * @return averageSuccessRate 平均成功率（基点）
-     */
-    function getEpochSummary(
-        uint256 epoch
-    )
+    /// @inheritdoc IValidatorPerformanceTracker
+    function getEpochSummary(uint256 epoch)
         external
         view
         returns (uint256 totalValidators, uint256 totalSuccessful, uint256 totalFailed, uint256 averageSuccessRate)
@@ -309,12 +247,13 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /**
-     * @dev 初始化验证者集合
+     * @dev Initialize validator set
+     * @param validators Initial validator addresses
      */
     function _initializeValidatorSet(address[] calldata validators) internal {
         if (validators.length == 0) revert EmptyActiveValidatorSet();
 
-        // 检查重复验证者
+        // Check for duplicate validators
         for (uint256 i = 0; i < validators.length; i++) {
             for (uint256 j = i + 1; j < validators.length; j++) {
                 if (validators[i] == validators[j]) {
@@ -327,14 +266,15 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /**
-     * @dev 保存当前epoch性能数据到历史记录
+     * @dev Save current epoch performance data to historical records
+     * @param epoch Current epoch number
      */
     function _finalizeCurrentEpochPerformance(uint256 epoch) internal {
         if (currentValidators.length > 0) {
             uint256 totalSuccessful = 0;
             uint256 totalFailed = 0;
 
-            // 保存到历史映射
+            // Save to historical mapping
             epochValidatorCount[epoch] = currentValidators.length;
             for (uint256 i = 0; i < currentValidators.length; i++) {
                 epochValidatorPerformance[epoch][i] = currentValidators[i];
@@ -347,7 +287,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /**
-     * @dev 重置当前epoch的性能统计
+     * @dev Reset current epoch performance statistics
      */
     function _resetPerformanceStatistics() internal {
         for (uint256 i = 0; i < currentValidators.length; i++) {
@@ -357,7 +297,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /**
-     * @dev 从ValidatorManager获取验证者集合
+     * @dev Get validator set from ValidatorManager
      */
     function _updateActiveValidatorSetFromSystem() internal {
         address[] memory validators = IValidatorManager(VALIDATOR_MANAGER_ADDR).getActiveValidators();
@@ -367,35 +307,37 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /**
-     * @dev 更新活跃验证者集合和性能数据结构
+     * @dev Update active validator set and performance data structure
+     * @param validators New validator addresses
+     * @param epoch Current epoch number
      */
     function _updateActiveValidatorSet(address[] memory validators, uint256 epoch) internal {
         if (validators.length == 0) revert EmptyActiveValidatorSet();
 
-        // 清除旧的验证者映射
+        // Clear old validator mappings
         for (uint256 i = 0; i < activeValidators.length; i++) {
             isActiveValidator[activeValidators[i]] = false;
             delete validatorIndex[activeValidators[i]];
         }
 
-        // 清空数组
+        // Clear arrays
         delete activeValidators;
         delete currentValidators;
 
-        // 设置新的验证者集合
+        // Set new validator set
         for (uint256 i = 0; i < validators.length; i++) {
-            // 检查地址有效性
+            // Check address validity
             require(validators[i] != address(0), "Invalid validator address");
 
-            // 检查重复
+            // Check for duplicates
             require(!isActiveValidator[validators[i]], "Duplicate validator");
 
             activeValidators.push(validators[i]);
             validatorIndex[validators[i]] = i;
             isActiveValidator[validators[i]] = true;
 
-            // 初始化性能数据
-            currentValidators.push(IndividualValidatorPerformance({ successfulProposals: 0, failedProposals: 0 }));
+            // Initialize performance data
+            currentValidators.push(IndividualValidatorPerformance({successfulProposals: 0, failedProposals: 0}));
         }
 
         emit ActiveValidatorSetUpdated(epoch, validators);

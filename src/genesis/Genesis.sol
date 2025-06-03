@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.30;
 
 import "@src/System.sol";
 import "@src/interfaces/IValidatorManager.sol";
@@ -33,6 +33,7 @@ contract Genesis is System {
      * @dev 创世初始化入口函数
      */
     function initialize(
+        address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
         uint64[] calldata votingPowers,
@@ -42,7 +43,7 @@ contract Genesis is System {
         if (consensusAddresses.length == 0) revert InvalidInitialValidators();
 
         // 1. 初始化质押模块
-        _initializeStake(consensusAddresses, feeAddresses, votingPowers, voteAddresses);
+        _initializeStake(validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses);
 
         // 2. 初始化周期模块
         _initializeEpoch();
@@ -68,6 +69,7 @@ contract Genesis is System {
      * @dev 初始化质押模块
      */
     function _initializeStake(
+        address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
         uint64[] calldata votingPowers,
@@ -78,14 +80,11 @@ contract Genesis is System {
 
         // 初始化ValidatorManager，同时传入初始验证者数据
         IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(
-            consensusAddresses,
-            feeAddresses,
-            votingPowers,
-            voteAddresses
+            validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses
         );
 
         // 初始化ValidatorPerformanceTracker
-        IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(consensusAddresses);
+        IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(validatorAddresses);
     }
 
     /**

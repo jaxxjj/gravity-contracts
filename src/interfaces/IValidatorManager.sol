@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.30;
 
 import "@src/interfaces/IReconfigurableModule.sol";
 
@@ -8,73 +8,63 @@ import "@src/interfaces/IReconfigurableModule.sol";
  * @dev Interface for ValidatorManager
  */
 interface IValidatorManager is IReconfigurableModule {
-    // 统一的验证者状态枚举
+    // Validator status enum
     enum ValidatorStatus {
         PENDING_ACTIVE, // 0
         ACTIVE, // 1
         PENDING_INACTIVE, // 2
         INACTIVE // 3
+
     }
 
-    // 验证者角色结构
-    struct ValidatorRoles {
-        address operator; // 验证者操作员，负责日常操作
-        address commissionBeneficiary; // 佣金受益人，接收验证者佣金
-    }
-
-    // 新增：Commission结构体
+    // Commission structure
     struct Commission {
         uint64 rate; // the commission rate charged to delegators(10000 is 100%)
         uint64 maxRate; // maximum commission rate which validator can ever charge
         uint64 maxChangeRate; // maximum daily increase of the validator commission
     }
 
-    /// 验证者完整信息（整合两个合约的字段）
+    /// Complete validator information (merged from multiple contracts)
     struct ValidatorInfo {
-        // 基本信息（来自ValidatorManager）
+        // Basic information (from ValidatorManager)
         bytes consensusPublicKey;
-        address payable feeAddress; // 新增：手续费接收地址
-        bytes voteAddress; // 新增：BLS投票地址
-        Commission commission; // 修改：从uint64 commissionRate改为Commission结构体
+        address payable feeAddress; // Fee receiving address
+        bytes voteAddress; // BLS voting address
+        Commission commission;
         string moniker;
         uint256 createdTime;
         bool registered;
         address stakeCreditAddress;
-        // 集合管理信息（来自ValidatorSet）
-        ValidatorStatus status; // 使用枚举类型
+        ValidatorStatus status;
         uint64 votingPower;
         uint256 validatorIndex;
         uint256 lastEpochActive;
-        uint256 updateTime; // 新增：最后一次更新时间
-        // 操作员地址
-        address operator; // 直接包含operator，不再使用ValidatorRoles
+        uint256 updateTime; // Last update time
+        address operator;
     }
 
-    // 在接口中定义ValidatorSetData结构
+    // ValidatorSetData structure
     struct ValidatorSetData {
-        uint128 totalVotingPower; // 总投票权重
-        uint128 totalJoiningPower; // 等待加入的总权重
+        uint128 totalVotingPower; // Total voting power
+        uint128 totalJoiningPower; // Total pending voting power
     }
 
-    // 验证者注册参数结构
+    // Validator registration parameters
     struct ValidatorRegistrationParams {
         bytes consensusPublicKey;
-        address payable feeAddress; // 新增：手续费接收地址
-        bytes voteAddress; // BLS投票地址
+        address payable feeAddress; // Fee receiving address
+        bytes voteAddress; // BLS voting address
         bytes blsProof; // BLS proof
-        Commission commission; // 修改：从uint64 commissionRate修改为Commission结构体
+        Commission commission; // Changed from uint64 commissionRate to Commission struct
         string moniker;
         address initialOperator;
         address initialVoter;
-        address initialBeneficiary; // 保留这个，直接传给StakeCredit
+        address initialBeneficiary; // Passed directly to StakeCredit
     }
 
-    /// 验证者注册相关事件
+    /// Validator registration events
     event ValidatorRegistered(
-        address indexed validator,
-        address indexed operator,
-        bytes consensusPublicKey,
-        string moniker
+        address indexed validator, address indexed operator, bytes consensusPublicKey, string moniker
     );
 
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);
@@ -82,21 +72,19 @@ interface IValidatorManager is IReconfigurableModule {
     event RewardsCollected(uint256 amount, uint256 totalIncoming);
     event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
 
-    // 角色管理事件
+    // Role management events
     event OperatorUpdated(address indexed validator, address indexed oldOperator, address indexed newOperator);
 
-    /// 验证者集合管理事件（借鉴Aptos）
+    /// Validator set management events (inspired by Aptos)
     event ValidatorJoinRequested(address indexed validator, uint64 votingPower, uint64 epoch);
     event ValidatorLeaveRequested(address indexed validator, uint64 epoch);
     event ValidatorStatusChanged(address indexed validator, uint8 oldStatus, uint8 newStatus, uint64 epoch);
 
-    //  StakeReward 事件
+    // StakeReward events
     event RewardsDistributed(address indexed validator, uint256 amount);
-    event FinalityRewardDistributed(address indexed validator, uint256 amount);
-    event ValidatorDeposit(address indexed validator, uint256 amount);
     event RewardDistributeFailed(address indexed validator, string reason);
 
-    /// Epoch转换事件
+    /// Epoch transition events
     event ValidatorSetUpdated(
         uint64 indexed epoch,
         uint256 activeCount,
@@ -105,28 +93,29 @@ interface IValidatorManager is IReconfigurableModule {
         uint128 totalVotingPower
     );
 
-    // 注册相关错误
+    // Registration related errors
     error ValidatorAlreadyExists(address validator);
     error ValidatorNotExists(address validator);
     error InvalidCommissionRate(uint64 rate, uint64 maxRate);
     error InvalidStakeAmount(uint256 provided, uint256 required);
-    error StakeCreditDeployFailed();
     error UnauthorizedCaller(address caller, address validator);
-    error InvalidCommission(); // 新增：无效的佣金设置错误
-    error UpdateTooFrequently(); // 新增：更新过于频繁错误
+    error InvalidCommission(); // Invalid commission settings
+    error UpdateTooFrequently(); // Update too frequent error
     error InvalidAddress(address addr);
     error AddressAlreadyInUse(address addr, address currentValidator);
     error NotValidator(address caller, address validator);
+    error ArrayLengthMismatch(); // Error for array length mismatch
 
-    // BLS验证相关错误
+    // BLS verification related errors
     error InvalidVoteAddress();
     error DuplicateVoteAddress(bytes voteAddress);
+    error DuplicateConsensusAddress(bytes consensusAddress);
+    error InvalidMoniker(string moniker);
+    error DuplicateMoniker(string moniker);
 
-    // 集合管理相关错误（借鉴Aptos）
+    // Set management related errors (inspired by Aptos)
     error AlreadyInitialized();
-    error NotInitialized();
     error ValidatorNotInactive(address validator);
-    error ValidatorAlreadyPending(address validator);
     error ValidatorNotActive(address validator);
     error ValidatorSetReachedMax(uint256 current, uint256 max);
     error InvalidVotingPower(uint64 votingPower);
@@ -136,145 +125,176 @@ interface IValidatorManager is IReconfigurableModule {
     error NewOperatorIsValidatorSelf();
 
     /**
-     * @dev 初始化验证者集合
+     * @dev Initialize validator set
      */
     function initialize(
+        address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
         uint64[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) external;
 
-    // ======== 验证者注册 ========
+    // ======== Validator Registration ========
 
     /**
-     * @dev 注册新验证者
+     * @dev Register new validator
      */
     function registerValidator(ValidatorRegistrationParams calldata params) external payable;
 
     /**
-     * @dev 加入验证者集合
+     * @dev Join validator set
      */
     function joinValidatorSet(address validator) external;
 
     /**
-     * @dev 离开验证者集合
+     * @dev Leave validator set
      */
     function leaveValidatorSet(address validator) external;
 
     /**
-     * @dev 处理新epoch事件
+     * @dev Process new epoch event
      */
     function onNewEpoch() external;
 
     /**
-     * @dev 检查验证者是否满足最小质押要求
+     * @dev Check if validator meets minimum stake requirement
      */
     function checkValidatorMinStake(address validator) external;
 
-    // ======== 验证者信息更新 ========
+    // ======== Validator Information Updates ========
 
     /**
-     * @dev 更新共识公钥
+     * @dev Update consensus public key
      */
     function updateConsensusKey(address validator, bytes calldata newConsensusKey) external;
 
     /**
-     * @dev 更新佣金率
-     * @param validator 验证者地址
-     * @param newCommissionRate 新的佣金率
+     * @dev Update commission rate
+     * @param validator Validator address
+     * @param newCommissionRate New commission rate
      */
     function updateCommissionRate(address validator, uint64 newCommissionRate) external;
 
     /**
-     * @dev 更新BLS投票地址
-     * @param validator 验证者地址
-     * @param newVoteAddress 新的投票地址
+     * @dev Update BLS voting address
+     * @param validator Validator address
+     * @param newVoteAddress New voting address
      * @param blsProof BLS proof
      */
     function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external;
 
-    // ======== 角色查询功能 ========
+    // ======== Role Query Functions ========
 
     /**
-     * @dev 检查是否为验证者本身
+     * @dev Check if account is validator itself
      */
     function isValidator(address validator, address account) external view returns (bool);
 
     /**
-     * @dev 获取验证者信息
+     * @dev Check if account is validator operator
+     * @param validator The validator address
+     * @param account The account to check
+     * @return Whether the account is validator operator
+     */
+    function isOperator(address validator, address account) external view returns (bool);
+
+    /**
+     * @dev Check if account has operator permission for validator
+     * @param validator The validator address
+     * @param account The account to check
+     * @return Whether the account has operator permission
+     */
+    function hasOperatorPermission(address validator, address account) external view returns (bool);
+
+    /**
+     * @dev Get validator information
      */
     function getValidatorInfo(address validator) external view returns (ValidatorInfo memory);
 
     /**
-     * @dev 获取活跃验证者列表
+     * @dev Get active validator list
      */
     function getActiveValidators() external view returns (address[] memory validators);
 
     /**
-     * @dev 获取待处理验证者列表
+     * @dev Get pending validator list
      */
     function getPendingValidators() external view returns (address[] memory);
 
     /**
-     * @dev 检查验证者是否为当前活跃验证者
+     * @dev Check if validator is current active validator
      */
     function isCurrentEpochValidator(address validator) external view returns (bool);
 
     /**
-     * @dev 获取总投票权重
+     * @dev Check if validator is current active validator (alias for isCurrentEpochValidator)
+     */
+    function isCurrentValidator(address validator) external view returns (bool);
+
+    /**
+     * @dev Get total voting power
      */
     function getTotalVotingPower() external view returns (uint256);
 
     /**
-     * @dev 获取验证者集合数据
+     * @dev Get validator set data
      */
     function getValidatorSetData() external view returns (ValidatorSetData memory);
 
     /**
-     * @dev 获取验证者的StakeCredit地址
+     * @dev Get validator's StakeCredit address
      */
     function getValidatorStakeCredit(address validator) external view returns (address);
 
     /**
-     * @dev 检查投票权增长限制
+     * @dev Check voting power increase limit
      */
     function checkVotingPowerIncrease(uint256 increaseAmount) external view;
 
     /**
-     * @dev 检查验证者是否注册
+     * @dev Check if validator is registered
      */
     function isValidatorRegistered(address validator) external view returns (bool);
 
     /**
-     * @dev 检查验证者是否存在
+     * @dev Check if validator exists
      */
     function isValidatorExists(address validator) external view returns (bool);
 
     /**
-     * @dev 获取验证者状态
+     * @dev Get validator status
      */
     function getValidatorStatus(address validator) external view returns (ValidatorStatus);
 
     /**
-     * @dev 获取验证者的投票地址
+     * @dev Get validator's voting address
      */
     function getValidatorVoteAddress(address validator) external view returns (bytes memory);
 
     /**
-     * @dev 获取验证者在当前活跃验证者集合中的索引
-     * @param validator 验证者地址
-     * @return 验证者索引，如果不是活跃验证者则可能返回0或revert
+     * @dev Get validator index in current active validator set
+     * @param validator Validator address
+     * @return Validator index, may return 0 or revert if not active
      */
     function getValidatorIndex(address validator) external view returns (uint64);
 
     /**
-     * @dev 区块生产者存入区块奖励
+     * @dev Block producer deposits block rewards
      */
     function deposit() external payable;
 
     /**
-     * @dev 获取验证者的操作员
+     * @dev Update validator's operator address
+     * @param validator Validator address
+     * @param newOperator New operator address
+     */
+    function updateOperator(address validator, address newOperator) external;
+
+    /**
+     * @dev Get validator's operator address
+     * @param validator The validator address
+     * @return The operator address
      */
     function getOperator(address validator) external view returns (address);
 }

@@ -1,70 +1,67 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.30;
 
 /**
  * @title IDelegation
  * @dev Interface for the Delegation contract
  */
 interface IDelegation {
-    // ======== 错误定义 ========
+    // ======== Errors ========
     error Delegation__ValidatorNotRegistered(address validator);
-    error Delegation__NotOperator(address caller, address validator);
-    error Delegation__NotValidatorOwner(address caller, address validator);
     error Delegation__ZeroShares();
     error Delegation__LessThanMinDelegationChange();
     error Delegation__SameValidator();
     error Delegation__OnlySelfDelegationToJailedValidator();
     error Delegation__TransferFailed();
-    // ======== 事件 ========
 
-    event Delegated(address indexed validator, address indexed delegator, uint256 shares, uint256 bnbAmount);
-    event Undelegated(address indexed validator, address indexed delegator, uint256 shares, uint256 gAmount);
+    // ======== Events ========
+    event Delegated(address indexed validator, address indexed delegator, uint256 shares, uint256 amount);
+    event Undelegated(address indexed validator, address indexed delegator, uint256 shares, uint256 amount);
     event UnbondedTokensWithdrawn(address indexed delegator, uint256 amount);
-    event NewEpoch(uint256 indexed epoch, uint256 epochTransitionTime);
     event Redelegated(
         address indexed srcValidator,
         address indexed dstValidator,
         address indexed delegator,
         uint256 shares,
         uint256 newShares,
-        uint256 bnbAmount,
+        uint256 amount,
         uint256 feeCharge
     );
     event VoteDelegated(address indexed delegator, address indexed voter);
 
-    // ======== 核心功能 ========
+    // ======== Core Functions ========
     /**
-     * @dev 向验证者质押
-     * @param validator 验证者地址
+     * @dev Delegate tokens to a validator
+     * @param validator The validator address to delegate to
      */
     function delegate(address validator) external payable;
 
     /**
-     * @dev 解除质押
-     * @param validator 验证者地址
-     * @param shares 要解除的份额
+     * @dev Undelegate tokens from a validator
+     * @param validator The validator address to undelegate from
+     * @param shares The amount of shares to undelegate
      */
     function undelegate(address validator, uint256 shares) external;
 
     /**
-     * @dev 提取解绑的资金
-     * @param validator 验证者地址
-     * @param requestCount 要处理的请求数量
+     * @dev Claim unbonded tokens
+     * @param validator The validator address to claim from
+     * @param requestCount The number of unbonding requests to process
      */
     function claim(address validator, uint256 requestCount) external;
 
     /**
-     * @dev 重新委托质押从一个验证者到另一个
-     * @param srcValidator 源验证者地址
-     * @param dstValidator 目标验证者地址
-     * @param shares 要重新委托的份额
-     * @param delegateVotePower 是否同时委托投票权
+     * @dev Redelegate tokens from one validator to another
+     * @param srcValidator Source validator address
+     * @param dstValidator Destination validator address
+     * @param shares The amount of shares to redelegate
+     * @param delegateVotePower Whether to also delegate voting power
      */
     function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower) external;
 
     /**
-     * @dev 委托投票权给指定地址
-     * @param voter 接收投票权的地址
+     * @dev Delegate voting power to another address
+     * @param voter The address to receive voting power
      */
     function delegateVoteTo(address voter) external;
 }

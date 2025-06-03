@@ -14,8 +14,8 @@ import "@src/access/Protectable.sol";
 import "@src/lib/Bytes.sol";
 import "@src/interfaces/IGovToken.sol";
 import "@src/lib/Bytes.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IVotes } from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import "@src/interfaces/IEpochManager.sol";
 
 contract GravityGovernor is
@@ -97,8 +97,8 @@ contract GravityGovernor is
         if (latestProposalId != 0) {
             ProposalState proposersLatestProposalState = state(latestProposalId);
             if (
-                proposersLatestProposalState == ProposalState.Active ||
-                proposersLatestProposalState == ProposalState.Pending
+                proposersLatestProposalState == ProposalState.Active
+                    || proposersLatestProposalState == ProposalState.Pending
             ) {
                 revert OneLiveProposalPerProposer();
             }
@@ -118,12 +118,13 @@ contract GravityGovernor is
      * @param calldatas calldata for each contract call
      * @param descriptionHash the description hash
      */
-    function queue(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        bytes32 descriptionHash
-    ) public override whenNotPaused notInBlackList returns (uint256 proposalId) {
+    function queue(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
+        public
+        override
+        whenNotPaused
+        notInBlackList
+        returns (uint256 proposalId)
+    {
         for (uint256 i = 0; i < targets.length; i++) {
             if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }
@@ -177,9 +178,12 @@ contract GravityGovernor is
      * @notice module:core
      * @dev Current state of a proposal, following Compound's convention
      */
-    function state(
-        uint256 proposalId
-    ) public view override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (ProposalState) {
+    function state(uint256 proposalId)
+        public
+        view
+        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
+        returns (ProposalState)
+    {
         return GovernorTimelockControlUpgradeable.state(proposalId);
     }
 
@@ -200,9 +204,12 @@ contract GravityGovernor is
      * @dev Timepoint at which votes close. If using block number, votes close at the end of this block, so it is
      * possible to cast a vote during this block.
      */
-    function proposalDeadline(
-        uint256 proposalId
-    ) public view override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable) returns (uint256) {
+    function proposalDeadline(uint256 proposalId)
+        public
+        view
+        override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
+        returns (uint256)
+    {
         return GovernorPreventLateQuorumUpgradeable.proposalDeadline(proposalId);
     }
 
@@ -242,13 +249,13 @@ contract GravityGovernor is
         return GovernorTimelockControlUpgradeable._cancel(targets, values, calldatas, descriptionHash);
     }
 
-    function _castVote(
-        uint256 proposalId,
-        address account,
-        uint8 support,
-        string memory reason,
-        bytes memory params
-    ) internal override(GovernorUpgradeable) whenNotPaused notInBlackList returns (uint256) {
+    function _castVote(uint256 proposalId, address account, uint8 support, string memory reason, bytes memory params)
+        internal
+        override(GovernorUpgradeable)
+        whenNotPaused
+        notInBlackList
+        returns (uint256)
+    {
         return super._castVote(proposalId, account, support, reason, params);
     }
 
@@ -274,30 +281,28 @@ contract GravityGovernor is
         bytes32 descriptionHash
     ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (uint48) {
         return
-            GovernorTimelockControlUpgradeable._queueOperations(
-                proposalId,
-                targets,
-                values,
-                calldatas,
-                descriptionHash
-            );
+            GovernorTimelockControlUpgradeable._queueOperations(proposalId, targets, values, calldatas, descriptionHash);
     }
 
     /**
      * @dev Override _tallyUpdated to resolve conflict between GovernorUpgradeable and GovernorPreventLateQuorumUpgradeable
      */
-    function _tallyUpdated(
-        uint256 proposalId
-    ) internal override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable) {
+    function _tallyUpdated(uint256 proposalId)
+        internal
+        override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
+    {
         GovernorPreventLateQuorumUpgradeable._tallyUpdated(proposalId);
     }
 
     /**
      * @dev Override proposalNeedsQueuing to resolve conflict between GovernorUpgradeable and GovernorTimelockControlUpgradeable
      */
-    function proposalNeedsQueuing(
-        uint256 proposalId
-    ) public view override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (bool) {
+    function proposalNeedsQueuing(uint256 proposalId)
+        public
+        view
+        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
+        returns (bool)
+    {
         return GovernorTimelockControlUpgradeable.proposalNeedsQueuing(proposalId);
     }
 
@@ -369,9 +374,11 @@ contract GravityGovernor is
     /**
      * @dev Accessor to the internal vote counts.
      */
-    function proposalVotes(
-        uint256 proposalId
-    ) public view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes) {
+    function proposalVotes(uint256 proposalId)
+        public
+        view
+        returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)
+    {
         ProposalVote storage proposalVote = _proposalVotes[proposalId];
         return (proposalVote.againstVotes, proposalVote.forVotes, proposalVote.abstainVotes);
     }

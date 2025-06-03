@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.30;
 
 import "@src/interfaces/IParamSubscriber.sol";
 
 /**
  * @title IEpochManager
- * @dev 定义EpochManager合约的接口，用于管理区块链的纪元转换
+ * @dev Interface for EpochManager contract that manages blockchain epoch transitions
  */
 interface IEpochManager is IParamSubscriber {
     event EpochTransitioned(uint256 indexed newEpoch, uint256 transitionTime);
@@ -13,33 +13,49 @@ interface IEpochManager is IParamSubscriber {
     event ModuleNotificationFailed(address indexed module, bytes reason);
     event ConfigParamUpdated(string indexed param, uint256 oldValue, uint256 newValue);
 
-    error EpochDurationNotPassed(uint256 currentTime, uint256 requiredTime);
     error InvalidEpochDuration();
     error NotAuthorized();
     error EpochManager__ParameterNotFound(string param);
+    /**
+     * @dev Get current epoch number
+     * @return Current epoch number
+     */
 
     function currentEpoch() external view returns (uint256);
+
+    /**
+     * @dev Get epoch interval in microseconds
+     * @return Epoch interval in microseconds
+     */
     function epochIntervalMicrosecs() external view returns (uint256);
+
+    /**
+     * @dev Get last epoch transition time
+     * @return Last epoch transition timestamp
+     */
     function lastEpochTransitionTime() external view returns (uint256);
 
+    /**
+     * @dev Initialize the contract
+     */
     function initialize() external;
 
     /**
-     * @dev 处理纪元转换，通知所有系统模块
+     * @dev Trigger epoch transition and notify all system modules
      */
     function triggerEpochTransition() external;
 
     /**
-     * @dev 检查是否可以进行纪元转换
-     * @return 如果可以进行纪元转换，则返回 true
+     * @dev Check if epoch transition can be triggered
+     * @return Whether epoch transition can be triggered
      */
     function canTriggerEpochTransition() external view returns (bool);
 
     /**
-     * @dev 获取当前纪元信息
-     * @return epoch 当前纪元
-     * @return lastTransitionTime 上次纪元转换时间
-     * @return duration 纪元持续时间
+     * @dev Get current epoch information
+     * @return epoch Current epoch number
+     * @return lastTransitionTime Last epoch transition time
+     * @return duration Epoch duration in microseconds
      */
     function getCurrentEpochInfo()
         external
@@ -47,8 +63,8 @@ interface IEpochManager is IParamSubscriber {
         returns (uint256 epoch, uint256 lastTransitionTime, uint256 duration);
 
     /**
-     * @dev 获取距离下次epoch切换的剩余时间
-     * @return remainingTime 剩余时间（秒）
+     * @dev Get remaining time until next epoch transition
+     * @return remainingTime Remaining time in seconds
      */
     function getRemainingTime() external view returns (uint256 remainingTime);
 }

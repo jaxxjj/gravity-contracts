@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.30;
 
 import "@src/interfaces/IParamSubscriber.sol";
 
@@ -69,6 +69,7 @@ interface IJWKManager is IParamSubscriber {
         RemoveIssuer, // 移除特定发行者
         RemoveJWK, // 移除特定JWK
         UpsertJWK // 插入或更新JWK
+
     }
 
     /// @dev 补丁操作
@@ -155,19 +156,18 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 尝试获取补丁后的JWK（不会revert）
      */
-    function tryGetPatchedJWK(
-        string calldata issuer,
-        bytes calldata jwkId
-    ) external view returns (bool found, JWK memory jwk);
+    function tryGetPatchedJWK(string calldata issuer, bytes calldata jwkId)
+        external
+        view
+        returns (bool found, JWK memory jwk);
 
     /**
      * @dev 获取联邦JWK
      */
-    function getFederatedJWK(
-        address dapp,
-        string calldata issuer,
-        bytes calldata jwkId
-    ) external view returns (JWK memory);
+    function getFederatedJWK(address dapp, string calldata issuer, bytes calldata jwkId)
+        external
+        view
+        returns (JWK memory);
 
     /**
      * @dev 获取观察到的JWKs
@@ -209,8 +209,9 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 获取提供者信息
      */
-    function supportedProviders(
-        uint256 index
-    ) external view returns (string memory name, string memory configUrl, bool active);
+    function supportedProviders(uint256 index)
+        external
+        view
+        returns (string memory name, string memory configUrl, bool active);
     function providerIndex(string calldata name) external view returns (uint256);
 }

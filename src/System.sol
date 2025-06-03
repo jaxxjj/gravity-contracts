@@ -81,8 +81,9 @@ contract System {
     }
 
     modifier onlyDelegationOrValidatorManager() {
-        if (msg.sender != DELEGATION_ADDR && msg.sender != VALIDATOR_MANAGER_ADDR)
+        if (msg.sender != DELEGATION_ADDR && msg.sender != VALIDATOR_MANAGER_ADDR) {
             revert OnlySystemContract(msg.sender == DELEGATION_ADDR ? DELEGATION_ADDR : VALIDATOR_MANAGER_ADDR);
+        }
         _;
     }
 

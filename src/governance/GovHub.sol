@@ -27,9 +27,8 @@ contract GovHub is System {
             emit failReasonWithStr("the target is not a contract");
             return ERROR_TARGET_NOT_CONTRACT;
         }
-        try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value) {} catch Error(
-            string memory reason
-        ) {
+        try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value) {}
+        catch Error(string memory reason) {
             emit failReasonWithStr(reason);
             return ERROR_TARGET_CONTRACT_FAIL;
         } catch (bytes memory lowLevelData) {

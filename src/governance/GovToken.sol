@@ -104,11 +104,10 @@ contract GovToken is
      * @dev Override _update to prevent transfers while allowing mint/burn
      * In v5.x, _update is the core function that handles mint, burn, and transfer
      */
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
         // Allow minting (from == address(0)) and burning (to == address(0))
         if (from != address(0) && to != address(0)) {
             revert TransferNotAllowed();
@@ -138,9 +137,13 @@ contract GovToken is
      * @dev Resolve nonces function conflict between ERC20Permit and ERC20Votes
      * Use ERC20Permit's implementation for permit functionality
      */
-    function nonces(
-        address owner
-    ) public view virtual override(ERC20PermitUpgradeable, NoncesUpgradeable) returns (uint256) {
+    function nonces(address owner)
+        public
+        view
+        virtual
+        override(ERC20PermitUpgradeable, NoncesUpgradeable)
+        returns (uint256)
+    {
         return super.nonces(owner);
     }
 }
