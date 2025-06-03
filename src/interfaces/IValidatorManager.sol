@@ -90,6 +90,12 @@ interface IValidatorManager is IReconfigurableModule {
     event ValidatorLeaveRequested(address indexed validator, uint64 epoch);
     event ValidatorStatusChanged(address indexed validator, uint8 oldStatus, uint8 newStatus, uint64 epoch);
 
+    //  StakeReward 事件
+    event RewardsDistributed(address indexed validator, uint256 amount);
+    event FinalityRewardDistributed(address indexed validator, uint256 amount);
+    event ValidatorDeposit(address indexed validator, uint256 amount);
+    event RewardDistributeFailed(address indexed validator, string reason);
+
     /// Epoch转换事件
     event ValidatorSetUpdated(
         uint64 indexed epoch,

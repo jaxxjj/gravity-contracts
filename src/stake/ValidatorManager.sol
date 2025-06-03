@@ -66,11 +66,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /// 初始化标志
     bool private initialized;
 
-    // 从 StakeReward 导入的事件
-    event RewardsDistributed(address indexed validator, uint256 amount);
-    event FinalityRewardDistributed(address indexed validator, uint256 amount);
-    event ValidatorDeposit(address indexed validator, uint256 amount);
-
     // 用于跟踪验证者累积奖励的映射
     uint256 public totalIncoming;
 
@@ -1052,19 +1047,31 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                     address validator = validators[i];
                     address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
 
-                    if (stakeCreditAddress != address(0)) {
-                        // 计算该验证者应得奖励
-                        uint256 reward = (totalIncoming * weights[i]) / totalWeight;
+                    // 计算该验证者应得奖励
+                    uint256 reward = (totalIncoming * weights[i]) / totalWeight;
 
+                    // 检查stakeCreditAddress是否有效
+                    if (stakeCreditAddress == address(0)) {
+                        // 如果stakeCreditAddress无效，将奖励发送到系统奖励合约
+                        (bool success, ) = SYSTEM_REWARD_ADDR.call{ value: reward }("");
+                        if (success) {
+                            emit RewardDistributeFailed(validator, "INVALID_STAKECREDIT");
+                        }
+                    } else {
                         // 获取佣金率
                         uint64 commissionRate = validatorInfos[validator].commission.rate;
 
-                        // 发送奖励
+                        // 发送奖励 - 不需要try-catch，假设调用总是成功
                         StakeCredit(payable(stakeCreditAddress)).distributeReward{ value: reward }(commissionRate);
-
                         emit RewardsDistributed(validator, reward);
                     }
                 }
+            }
+        } else {
+            // 如果没有验证者应得奖励，将所有奖励发送到系统奖励合约
+            (bool success, ) = SYSTEM_REWARD_ADDR.call{ value: totalIncoming }("");
+            if (success) {
+                emit RewardDistributeFailed(address(0), "NO_ELIGIBLE_VALIDATORS");
             }
         }
 
