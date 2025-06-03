@@ -46,11 +46,6 @@ interface IStakeConfig {
     function getRequiredStake() external view returns (uint256 minimum, uint256 maximum);
     function getRewardRate() external view returns (uint256 rate, uint256 denominator);
 
-    function calculateRewardsAmount(uint256 stakeAmount, uint256 successfulProposals, uint256 totalProposals)
-        external
-        view
-        returns (uint256);
-
     struct ConfigParams {
         uint256 minValidatorStake;
         uint256 maximumStake;

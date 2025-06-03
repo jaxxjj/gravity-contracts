@@ -251,50 +251,26 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     }
 
     /**
-     * @dev 计算基于性能的奖励金额 (对应Aptos calculate_rewards_amount)
-     * @param stakeAmount 质押金额
-     * @param successfulProposals 成功提案数
-     * @param totalProposals 总提案数
-     * @return 奖励金额
-     */
-    function calculateRewardsAmount(uint256 stakeAmount, uint256 successfulProposals, uint256 totalProposals)
-        public
-        view
-        returns (uint256)
-    {
-        if (totalProposals == 0 || stakeAmount == 0) {
-            return 0;
-        }
-
-        // 对应Aptos中的性能乘数计算
-        // rewards_numerator = stake_amount * rewards_rate * num_successful_proposals
-        // rewards_denominator = rewards_rate_denominator * num_total_proposals
-        uint256 rewardsNumerator = stakeAmount * rewardsRate * successfulProposals;
-        uint256 rewardsDenominator = rewardsRateDenominator * totalProposals;
-
-        return rewardsNumerator / rewardsDenominator;
-    }
-
-    /**
      * @dev 获取当前所有配置参数
      */
     function getAllConfigParams() external view returns (ConfigParams memory) {
-        return ConfigParams({
-            minValidatorStake: minValidatorStake,
-            maximumStake: maximumStake,
-            minDelegationStake: minDelegationStake,
-            minDelegationChange: minDelegationChange,
-            maxValidatorCount: maxValidatorCount,
-            recurringLockupDuration: recurringLockupDuration,
-            allowValidatorSetChange: allowValidatorSetChange,
-            rewardsRate: rewardsRate,
-            rewardsRateDenominator: rewardsRateDenominator,
-            votingPowerIncreaseLimit: votingPowerIncreaseLimit,
-            maxCommissionRate: maxCommissionRate,
-            maxCommissionChangeRate: maxCommissionChangeRate,
-            redelegateFeeRate: redelegateFeeRate,
-            lockAmount: lockAmount
-        });
+        return
+            ConfigParams({
+                minValidatorStake: minValidatorStake,
+                maximumStake: maximumStake,
+                minDelegationStake: minDelegationStake,
+                minDelegationChange: minDelegationChange,
+                maxValidatorCount: maxValidatorCount,
+                recurringLockupDuration: recurringLockupDuration,
+                allowValidatorSetChange: allowValidatorSetChange,
+                rewardsRate: rewardsRate,
+                rewardsRateDenominator: rewardsRateDenominator,
+                votingPowerIncreaseLimit: votingPowerIncreaseLimit,
+                maxCommissionRate: maxCommissionRate,
+                maxCommissionChangeRate: maxCommissionChangeRate,
+                redelegateFeeRate: redelegateFeeRate,
+                lockAmount: lockAmount
+            });
     }
 
     /**

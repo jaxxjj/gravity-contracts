@@ -6,22 +6,9 @@ import "@src/interfaces/IValidatorPerformanceTracker.sol";
 import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/ITimestamp.sol";
+import "@src/interfaces/IBlock.sol";
 
-contract Block is System {
-    /**
-     * @dev 创世区块事件，记录区块链的起始
-     */
-    event NewBlockEvent(
-        address indexed hash,
-        uint256 epoch,
-        uint256 round,
-        uint256 height,
-        bytes previousBlockVotesBitvec,
-        address proposer,
-        uint64[] failedProposerIndices,
-        uint256 timeMicroseconds
-    );
-
+contract Block is System, IBlock {
     /**
      * @dev genesis的时候初始化合约 只能由system调用
      */
@@ -37,10 +24,11 @@ contract Block is System {
      * @param failedProposerIndices 失败的提议者索引列表
      * @param timestampMicros 当前块的时间戳（微秒）
      */
-    function blockPrologue(address proposer, uint64[] calldata failedProposerIndices, uint256 timestampMicros)
-        external
-        onlySystemCaller
-    {
+    function blockPrologue(
+        address proposer,
+        uint64[] calldata failedProposerIndices,
+        uint256 timestampMicros
+    ) external onlySystemCaller {
         // 1. 验证提议者是否有效（对应Aptos的assert检查）
         require(
             proposer == SYSTEM_CALLER || IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(proposer),
@@ -65,12 +53,14 @@ contract Block is System {
         // 对应Aptos中的update_performance_statistics调用
         if (hasProposerIndex) {
             IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
-                proposerIndex, failedProposerIndices
+                proposerIndex,
+                failedProposerIndices
             );
         } else {
             // 对于VM保留地址，传入无效索引标记
             IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
-                type(uint64).max, failedProposerIndices
+                type(uint64).max,
+                failedProposerIndices
             );
         }
 

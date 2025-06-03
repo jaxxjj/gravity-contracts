@@ -8,7 +8,7 @@ contract System {
     uint64 public constant MICRO_CONVERSION_FACTOR = 1000000;
     /*----------------- constants -----------------*/
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-
+    address public constant GENESIS_ADDR = 0x0000000000000000000000000000000000000001;
     address public constant SYSTEM_CALLER = 0x0000000000000000000000000000000000000000;
     address internal constant PERFORMANCE_TRACKER_ADDR = 0x00000000000000000000000000000000000000f1;
     address internal constant EPOCH_MANAGER_ADDR = 0x00000000000000000000000000000000000000f3;

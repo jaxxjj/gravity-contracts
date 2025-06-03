@@ -61,7 +61,6 @@ interface IStakeCredit {
     function inactive() external view returns (uint256);
     function pendingActive() external view returns (uint256);
     function pendingInactive() external view returns (uint256);
-    function lockedUntilSecs() external view returns (uint256);
     function validator() external view returns (address);
     function stakeHubAddress() external view returns (address);
     function commissionBeneficiary() external view returns (address);
@@ -96,7 +95,6 @@ interface IStakeCredit {
     function getStake() external view returns (uint256, uint256, uint256, uint256);
     function getNextEpochVotingPower() external view returns (uint256);
     function getCurrentEpochVotingPower() external view returns (uint256);
-    function getRemainingLockupSecs() external view returns (uint256);
     function validateStakeStates() external view returns (bool);
     function getDetailedStakeInfo()
         external
