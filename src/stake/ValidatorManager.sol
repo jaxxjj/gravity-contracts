@@ -120,14 +120,16 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @dev 初始化验证者集合（对应Aptos的initialize函数）
      */
     function initialize(
-        address[] calldata initialValidators,
-        uint64[] calldata initialVotingPowers,
-        string[] calldata initialMonikers
+        address[] calldata consensusAddresses,
+        address payable[] calldata feeAddresses,
+        uint64[] calldata votingPowers,
+        bytes[] calldata voteAddresses
     ) external onlySystemCaller {
         if (initialized) revert AlreadyInitialized();
 
-        require(initialValidators.length == initialVotingPowers.length, "Array length mismatch");
-        require(initialValidators.length == initialMonikers.length, "Array length mismatch for monikers");
+        require(consensusAddresses.length == feeAddresses.length, "Array length mismatch");
+        require(consensusAddresses.length == votingPowers.length, "Array length mismatch");
+        require(consensusAddresses.length == voteAddresses.length, "Array length mismatch");
 
         initialized = true;
 
@@ -135,39 +137,25 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         validatorSetData = ValidatorSetData({ totalVotingPower: 0, totalJoiningPower: 0 });
 
         // 添加初始验证者
-        for (uint256 i = 0; i < initialValidators.length; i++) {
-            address validator = initialValidators[i];
-            uint64 votingPower = initialVotingPowers[i];
-            string memory moniker = initialMonikers[i];
+        for (uint256 i = 0; i < consensusAddresses.length; i++) {
+            address validator = consensusAddresses[i];
+            address payable feeAddress = feeAddresses[i];
+            uint64 votingPower = votingPowers[i];
+            bytes memory voteAddress = voteAddresses[i];
 
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
 
-            // 检查验证者名称格式
-            if (!_checkMoniker(moniker)) {
-                revert InvalidMoniker(moniker);
-            }
-
-            // 检查验证者名称是否重复
-            bytes32 monikerHash = keccak256(abi.encodePacked(moniker));
-            if (_monikerSet[monikerHash]) {
-                revert DuplicateMoniker(moniker);
-            }
-
-            // 记录验证者名称
-            _monikerSet[monikerHash] = true;
-
             // 创建基本验证者信息
             validatorInfos[validator] = ValidatorInfo({
-                consensusPublicKey: "",
-                networkAddresses: "",
-                fullnodeAddresses: "",
-                voteAddress: "", // 初始空BLS地址
+                consensusPublicKey: abi.encodePacked(validator), // 使用地址作为共识公钥
+                feeAddress: feeAddress,
+                voteAddress: voteAddress,
                 commission: Commission({
                     rate: 0,
                     maxRate: 5000, // 默认最大佣金率50%
                     maxChangeRate: 500 // 默认每日最大变更率5%
                 }),
-                moniker: moniker, // 使用传入的moniker
+                moniker: string(abi.encodePacked("VAL", uint256(i))), // 生成默认名称
                 createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 registered: true,
                 stakeCreditAddress: address(0),
@@ -175,7 +163,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 votingPower: votingPower,
                 validatorIndex: i,
                 lastEpochActive: 0,
-                updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(), // 添加更新时间字段
+                updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 operator: validator // 默认自己是operator
             });
 
@@ -188,6 +176,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // 设置反向映射
             operatorToValidator[validator] = validator;
+
+            // 设置投票地址映射
+            if (voteAddress.length > 0) {
+                voteToOperator[voteAddress] = validator;
+            }
         }
     }
 
@@ -314,8 +307,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         ValidatorInfo storage info = validatorInfos[validator];
 
         info.consensusPublicKey = params.consensusPublicKey;
-        info.networkAddresses = params.networkAddresses;
-        info.fullnodeAddresses = params.fullnodeAddresses;
+        info.feeAddress = params.feeAddress;
         info.voteAddress = params.voteAddress;
     }
 
@@ -565,19 +557,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         emit ValidatorInfoUpdated(validator, "consensusKey");
-    }
-
-    /**
-     * @dev 更新网络地址
-     */
-    function updateNetworkAddresses(
-        address validator,
-        bytes calldata newNetworkAddresses,
-        bytes calldata newFullnodeAddresses
-    ) external validatorExists(validator) onlyValidatorOperator(validator) {
-        validatorInfos[validator].networkAddresses = newNetworkAddresses;
-        validatorInfos[validator].fullnodeAddresses = newFullnodeAddresses;
-        emit ValidatorInfoUpdated(validator, "networkAddresses");
     }
 
     /**
@@ -980,8 +959,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function _storeValidatorInfo(
         address validator,
         bytes memory consensusPublicKey,
-        bytes memory networkAddresses,
-        bytes memory fullnodeAddresses,
+        address payable feeAddress,
         bytes memory voteAddress,
         uint64 commissionRate,
         string memory moniker,
@@ -990,8 +968,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     ) internal {
         validatorInfos[validator] = ValidatorInfo({
             consensusPublicKey: consensusPublicKey,
-            networkAddresses: networkAddresses,
-            fullnodeAddresses: fullnodeAddresses,
+            feeAddress: feeAddress,
             voteAddress: voteAddress,
             commission: Commission({
                 rate: commissionRate,

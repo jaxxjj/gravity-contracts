@@ -33,8 +33,7 @@ interface IValidatorManager is IReconfigurableModule {
     struct ValidatorInfo {
         // 基本信息（来自ValidatorManager）
         bytes consensusPublicKey;
-        bytes networkAddresses;
-        bytes fullnodeAddresses;
+        address payable feeAddress; // 新增：手续费接收地址
         bytes voteAddress; // 新增：BLS投票地址
         Commission commission; // 修改：从uint64 commissionRate改为Commission结构体
         string moniker;
@@ -60,8 +59,7 @@ interface IValidatorManager is IReconfigurableModule {
     // 验证者注册参数结构
     struct ValidatorRegistrationParams {
         bytes consensusPublicKey;
-        bytes networkAddresses;
-        bytes fullnodeAddresses;
+        address payable feeAddress; // 新增：手续费接收地址
         bytes voteAddress; // BLS投票地址
         bytes blsProof; // BLS proof
         Commission commission; // 修改：从uint64 commissionRate修改为Commission结构体
@@ -135,9 +133,10 @@ interface IValidatorManager is IReconfigurableModule {
      * @dev 初始化验证者集合
      */
     function initialize(
-        address[] calldata initialValidators,
-        uint64[] calldata initialVotingPowers,
-        string[] calldata initialMonikers
+        address[] calldata consensusAddresses,
+        address payable[] calldata feeAddresses,
+        uint64[] calldata votingPowers,
+        bytes[] calldata voteAddresses
     ) external;
 
     // ======== 验证者注册 ========
@@ -173,15 +172,6 @@ interface IValidatorManager is IReconfigurableModule {
      * @dev 更新共识公钥
      */
     function updateConsensusKey(address validator, bytes calldata newConsensusKey) external;
-
-    /**
-     * @dev 更新网络地址
-     */
-    function updateNetworkAddresses(
-        address validator,
-        bytes calldata newNetworkAddresses,
-        bytes calldata newFullnodeAddresses
-    ) external;
 
     /**
      * @dev 更新佣金率

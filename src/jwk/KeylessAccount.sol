@@ -49,11 +49,23 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
 
     /**
      * @dev 初始化函数
-     * @param _config 初始配置
      */
-    function initialize(Configuration calldata _config) external initializer {
-        configuration = _config;
-        verifier = IGroth16Verifier(_config.verifier_address);
+    function initialize() external override initializer onlySystemCaller {
+        // 使用硬编码默认值初始化
+        configuration = Configuration({
+            max_signatures_per_txn: 16,
+            max_exp_horizon_secs: 86400, // 24小时
+            max_commited_epk_bytes: 128,
+            max_iss_val_bytes: 128,
+            max_extra_field_bytes: 2048,
+            max_jwt_header_b64_bytes: 4096,
+            verifier_address: 0x0000000000000000000000000000000000001010, // 预部署的验证器地址
+            training_wheels_pubkey: new bytes(0),
+            override_aud_vals: new string[](0)
+        });
+
+        // 初始化验证器实例
+        verifier = IGroth16Verifier(configuration.verifier_address);
     }
 
     // ======== 参数管理 ========

@@ -68,9 +68,8 @@ interface IKeylessAccount is IParamSubscriber {
     // ======== 函数声明 ========
     /**
      * @dev 初始化函数
-     * @param _config 初始配置
      */
-    function initialize(Configuration calldata _config) external;
+    function initialize() external;
 
     /**
      * @dev 创建无密钥账户
