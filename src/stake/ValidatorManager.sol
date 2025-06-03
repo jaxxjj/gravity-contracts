@@ -14,12 +14,11 @@ import "@src/interfaces/IValidatorManager.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@src/interfaces/ITimestamp.sol";
 import "@src/interfaces/IValidatorPerformanceTracker.sol";
+
+import "@src/interfaces/IReconfigurableModule.sol";
 /**
  * @title ValidatorManager
  * @dev validator set和管理的统一合约
- * 1. 借鉴Aptos stake.move的验证者集合管理逻辑
- * 2. 保留BSC StakeHub的注册和质押功能
- * 3. 注册管理、状态管理、集合管理、Epoch处理
  */
 
 contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorManager, Initializable {
@@ -487,7 +486,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // 4. 重新计算验证者集合 (基于最新的质押情况)
         _recalculateValidatorSet(minStakeRequired, currentEpoch);
 
-        // 5. 重置加入权重
+        // 5. 通知ValidatorPerformanceTracker合约
+        IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).onNewEpoch();
+
+        // 6. 重置加入权重
         validatorSetData.totalJoiningPower = 0;
 
         emit ValidatorSetUpdated(

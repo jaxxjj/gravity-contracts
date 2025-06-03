@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "@src/interfaces/IReconfigurableModule.sol";
+
 /**
  * @title IValidatorManager
  * @dev Interface for ValidatorManager
  */
-interface IValidatorManager {
+interface IValidatorManager is IReconfigurableModule {
     // 统一的验证者状态枚举
     enum ValidatorStatus {
         PENDING_ACTIVE, // 0

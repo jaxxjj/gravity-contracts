@@ -175,7 +175,9 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
 
             // 使用哈希值在ConfigParamUpdated事件中表示bytes变化
             emit ConfigParamUpdated(
-                "trainingWheels", uint256(keccak256(oldPublicKey)), uint256(keccak256(newPublicKey))
+                "trainingWheels",
+                uint256(keccak256(oldPublicKey)),
+                uint256(keccak256(newPublicKey))
             );
         } else if (Strings.equal(key, "addOverrideAud")) {
             string memory newAud = abi.decode(value, (string));
@@ -385,7 +387,7 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
     /**
      * @dev 新纪元回调，应用待定的配置更新
      */
-    function onNewEpoch() external override returns (bool) {
+    function onNewEpoch() external {
         if (hasPendingConfigUpdate) {
             // 更新配置
             configuration = pendingConfiguration;
@@ -399,7 +401,6 @@ contract KeylessAccount is System, Protectable, IParamSubscriber, IReconfigurabl
             hasPendingConfigUpdate = false;
             emit ConfigurationUpdated(keccak256(abi.encode(configuration)));
         }
-        return true;
     }
 
     // ======== 内部函数 ========

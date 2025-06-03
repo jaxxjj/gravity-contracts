@@ -8,7 +8,6 @@ pragma solidity ^0.8.17;
 interface IReconfigurableModule {
     /**
      * @dev 在new epoch开始时被调用，允许模块更新其状态
-     * @return 操作是否成功
      */
-    function onNewEpoch() external returns (bool);
+    function onNewEpoch() external;
 }

@@ -118,11 +118,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * @return lastTransitionTime 上次epoch转换时间
      * @return interval epoch持续时间（微秒）
      */
-    function getCurrentEpochInfo()
-        external
-        view
-        returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval)
-    {
+    function getCurrentEpochInfo() external view returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval) {
         return (currentEpoch, lastEpochTransitionTime, epochIntervalMicrosecs);
     }
 
@@ -156,11 +152,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      */
     function _safeNotifyModule(address moduleAddress) internal {
         if (moduleAddress != address(0)) {
-            try IReconfigurableModule(moduleAddress).onNewEpoch() returns (bool success) {
-                if (!success) {
-                    emit ModuleNotificationFailed(moduleAddress, "Module returned false");
-                }
-            } catch Error(string memory reason) {
+            try IReconfigurableModule(moduleAddress).onNewEpoch() {} catch Error(string memory reason) {
                 emit ModuleNotificationFailed(moduleAddress, bytes(reason));
             } catch (bytes memory lowLevelData) {
                 emit ModuleNotificationFailed(moduleAddress, lowLevelData);
