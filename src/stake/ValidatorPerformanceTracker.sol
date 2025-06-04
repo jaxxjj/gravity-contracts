@@ -48,7 +48,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     function updatePerformanceStatistics(
         uint64 proposerIndex,
         uint64[] calldata failedProposerIndices
-    ) external onlySystemCaller {
+    ) external onlyBlock {
         // Get current epoch directly from EpochManager
         uint256 epoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 
