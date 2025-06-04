@@ -64,7 +64,9 @@ abstract contract Protectable is System {
     /**
      * @dev Add an address to the black list
      */
-    function addToBlackList(address account) external virtual onlyGov {
+    function addToBlackList(
+        address account
+    ) external virtual onlyGov {
         blackList[account] = true;
         emit BlackListed(account);
     }
@@ -72,7 +74,9 @@ abstract contract Protectable is System {
     /**
      * @dev Remove an address from the black list
      */
-    function removeFromBlackList(address account) external virtual onlyGov {
+    function removeFromBlackList(
+        address account
+    ) external virtual onlyGov {
         delete blackList[account];
         emit UnBlackListed(account);
     }

@@ -325,7 +325,9 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
     /**
      * @dev 获取账户信息
      */
-    function getAccountInfo(address account) external view override returns (KeylessAccountInfo memory) {
+    function getAccountInfo(
+        address account
+    ) external view override returns (KeylessAccountInfo memory) {
         return accounts[account];
     }
 

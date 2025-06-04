@@ -221,7 +221,9 @@ contract BytesTest is Test {
     }
 
     // Edge case tests
-    function test_bytesToAddress_fuzzTest(address addr) public pure {
+    function test_bytesToAddress_fuzzTest(
+        address addr
+    ) public pure {
         // Arrange
         bytes memory data = abi.encodePacked(addr);
 
@@ -232,7 +234,9 @@ contract BytesTest is Test {
         assertEq(result, addr);
     }
 
-    function test_bytesToUint256_fuzzTest(uint256 value) public pure {
+    function test_bytesToUint256_fuzzTest(
+        uint256 value
+    ) public pure {
         // Arrange
         bytes memory data = abi.encodePacked(value);
 
@@ -243,7 +247,9 @@ contract BytesTest is Test {
         assertEq(result, value);
     }
 
-    function test_bytesToUint64_fuzzTest(uint64 value) public pure {
+    function test_bytesToUint64_fuzzTest(
+        uint64 value
+    ) public pure {
         // Arrange
         bytes memory data = abi.encodePacked(value);
 
@@ -254,7 +260,9 @@ contract BytesTest is Test {
         assertEq(result, value);
     }
 
-    function test_bytesToBytes32_fuzzTest(bytes32 value) public pure {
+    function test_bytesToBytes32_fuzzTest(
+        bytes32 value
+    ) public pure {
         // Arrange
         bytes memory data = abi.encodePacked(value);
 
@@ -265,7 +273,9 @@ contract BytesTest is Test {
         assertEq(result, value);
     }
 
-    function test_bytesConcat_fuzzTest(uint8 len) public {
+    function test_bytesConcat_fuzzTest(
+        uint8 len
+    ) public {
         // Arrange
         len = uint8(bound(len, 0, 32)); // Bound len to reasonable range
         bytes memory data = new bytes(64);

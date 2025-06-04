@@ -18,7 +18,9 @@ library ProxyHelper {
      * @param proxy 代理合约地址
      * @return implementationAddress 实现合约地址
      */
-    function getProxyImplementation(address proxy) internal view returns (address implementationAddress) {
+    function getProxyImplementation(
+        address proxy
+    ) internal view returns (address implementationAddress) {
         // 从指定的代理合约地址读取存储槽
         // 注意：我们需要使用低级调用来读取存储槽
         bool success;
@@ -45,7 +47,9 @@ library ProxyHelper {
      * @param proxy 代理合约地址
      * @return adminAddress 管理员地址
      */
-    function getProxyAdmin(address proxy) internal view returns (address adminAddress) {
+    function getProxyAdmin(
+        address proxy
+    ) internal view returns (address adminAddress) {
         // 从指定的代理合约地址读取存储槽
         // 注意：我们需要使用低级调用来读取存储槽
         bool success;

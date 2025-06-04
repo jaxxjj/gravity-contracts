@@ -40,7 +40,9 @@ interface IDelegation {
      * @dev Delegate tokens to a validator
      * @param validator The validator address to delegate to
      */
-    function delegate(address validator) external payable;
+    function delegate(
+        address validator
+    ) external payable;
 
     /**
      * @dev Undelegate tokens from a validator
@@ -54,14 +56,18 @@ interface IDelegation {
      * @param validator The validator to claim from
      * @return amount The amount claimed
      */
-    function claim(address validator) external returns (uint256 amount);
+    function claim(
+        address validator
+    ) external returns (uint256 amount);
 
     /**
      * @dev Batch claim from multiple validators
      * @param validators Array of validator addresses to claim from
      * @return totalClaimed Total amount claimed
      */
-    function claimBatch(address[] calldata validators) external returns (uint256 totalClaimed);
+    function claimBatch(
+        address[] calldata validators
+    ) external returns (uint256 totalClaimed);
 
     /**
      * @dev Redelegate tokens from one validator to another
@@ -76,5 +82,7 @@ interface IDelegation {
      * @dev Delegate voting power to another address
      * @param voter The address to receive voting power
      */
-    function delegateVoteTo(address voter) external;
+    function delegateVoteTo(
+        address voter
+    ) external;
 }

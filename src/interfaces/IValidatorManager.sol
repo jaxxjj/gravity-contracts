@@ -141,17 +141,23 @@ interface IValidatorManager is IReconfigurableModule {
     /**
      * @dev Register new validator
      */
-    function registerValidator(ValidatorRegistrationParams calldata params) external payable;
+    function registerValidator(
+        ValidatorRegistrationParams calldata params
+    ) external payable;
 
     /**
      * @dev Join validator set
      */
-    function joinValidatorSet(address validator) external;
+    function joinValidatorSet(
+        address validator
+    ) external;
 
     /**
      * @dev Leave validator set
      */
-    function leaveValidatorSet(address validator) external;
+    function leaveValidatorSet(
+        address validator
+    ) external;
 
     /**
      * @dev Process new epoch event
@@ -161,7 +167,9 @@ interface IValidatorManager is IReconfigurableModule {
     /**
      * @dev Check if validator meets minimum stake requirement
      */
-    function checkValidatorMinStake(address validator) external;
+    function checkValidatorMinStake(
+        address validator
+    ) external;
 
     // ======== Validator Information Updates ========
 
@@ -211,7 +219,9 @@ interface IValidatorManager is IReconfigurableModule {
     /**
      * @dev Get validator information
      */
-    function getValidatorInfo(address validator) external view returns (ValidatorInfo memory);
+    function getValidatorInfo(
+        address validator
+    ) external view returns (ValidatorInfo memory);
 
     /**
      * @dev Get active validator list
@@ -226,12 +236,16 @@ interface IValidatorManager is IReconfigurableModule {
     /**
      * @dev Check if validator is current active validator
      */
-    function isCurrentEpochValidator(address validator) external view returns (bool);
+    function isCurrentEpochValidator(
+        address validator
+    ) external view returns (bool);
 
     /**
      * @dev Check if validator is current active validator (alias for isCurrentEpochValidator)
      */
-    function isCurrentValidator(address validator) external view returns (bool);
+    function isCurrentValidator(
+        address validator
+    ) external view returns (bool);
 
     /**
      * @dev Get total voting power
@@ -246,39 +260,53 @@ interface IValidatorManager is IReconfigurableModule {
     /**
      * @dev Get validator's StakeCredit address
      */
-    function getValidatorStakeCredit(address validator) external view returns (address);
+    function getValidatorStakeCredit(
+        address validator
+    ) external view returns (address);
 
     /**
      * @dev Check voting power increase limit
      */
-    function checkVotingPowerIncrease(uint256 increaseAmount) external view;
+    function checkVotingPowerIncrease(
+        uint256 increaseAmount
+    ) external view;
 
     /**
      * @dev Check if validator is registered
      */
-    function isValidatorRegistered(address validator) external view returns (bool);
+    function isValidatorRegistered(
+        address validator
+    ) external view returns (bool);
 
     /**
      * @dev Check if validator exists
      */
-    function isValidatorExists(address validator) external view returns (bool);
+    function isValidatorExists(
+        address validator
+    ) external view returns (bool);
 
     /**
      * @dev Get validator status
      */
-    function getValidatorStatus(address validator) external view returns (ValidatorStatus);
+    function getValidatorStatus(
+        address validator
+    ) external view returns (ValidatorStatus);
 
     /**
      * @dev Get validator's voting address
      */
-    function getValidatorVoteAddress(address validator) external view returns (bytes memory);
+    function getValidatorVoteAddress(
+        address validator
+    ) external view returns (bytes memory);
 
     /**
      * @dev Get validator index in current active validator set
      * @param validator Validator address
      * @return Validator index, may return 0 or revert if not active
      */
-    function getValidatorIndex(address validator) external view returns (uint64);
+    function getValidatorIndex(
+        address validator
+    ) external view returns (uint64);
 
     /**
      * @dev Block producer deposits block rewards
@@ -297,5 +325,7 @@ interface IValidatorManager is IReconfigurableModule {
      * @param validator The validator address
      * @return The operator address
      */
-    function getOperator(address validator) external view returns (address);
+    function getOperator(
+        address validator
+    ) external view returns (address);
 }

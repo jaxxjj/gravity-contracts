@@ -22,12 +22,14 @@ contract GovHub is System {
         notifyUpdates(proposal);
     }
 
-    function notifyUpdates(ParamChangePackage memory proposal) internal returns (uint32) {
+    function notifyUpdates(
+        ParamChangePackage memory proposal
+    ) internal returns (uint32) {
         if (proposal.target.code.length == 0) {
             emit failReasonWithStr("the target is not a contract");
             return ERROR_TARGET_NOT_CONTRACT;
         }
-        try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value) {}
+        try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value) { }
         catch Error(string memory reason) {
             emit failReasonWithStr(reason);
             return ERROR_TARGET_CONTRACT_FAIL;

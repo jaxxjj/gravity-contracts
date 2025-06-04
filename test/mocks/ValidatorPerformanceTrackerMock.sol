@@ -13,7 +13,9 @@ contract ValidatorPerformanceTrackerMock {
     uint256 public totalCalls;
     bool public initialized;
 
-    function initialize(address[] calldata validatorAddresses) external {
+    function initialize(
+        address[] calldata validatorAddresses
+    ) external {
         initialized = true;
         // Mock initialization - just store that we're initialized
     }

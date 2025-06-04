@@ -74,7 +74,9 @@ contract Timestamp is System, ITimestamp {
      * @dev 验证时间戳是否大于当前时间戳
      * @param timestamp 时间戳 微秒
      */
-    function isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) external view returns (bool) {
+    function isGreaterThanOrEqualCurrentTimestamp(
+        uint64 timestamp
+    ) external view returns (bool) {
         return _isGreaterThanOrEqualCurrentTimestamp(timestamp);
     }
 
@@ -82,7 +84,9 @@ contract Timestamp is System, ITimestamp {
      * @dev 验证时间戳是否大于当前时间戳
      * @param timestamp 时间戳 微秒
      */
-    function _isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) private view returns (bool) {
+    function _isGreaterThanOrEqualCurrentTimestamp(
+        uint64 timestamp
+    ) private view returns (bool) {
         return timestamp >= microseconds;
     }
 }

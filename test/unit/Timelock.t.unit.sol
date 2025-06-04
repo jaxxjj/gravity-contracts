@@ -198,7 +198,9 @@ contract TimelockTest is Test, TestConstants {
 
     // ============ FUZZ TESTS ============
 
-    function testFuzz_updateParam_minDelay_validValues(uint256 newMinDelay) public {
+    function testFuzz_updateParam_minDelay_validValues(
+        uint256 newMinDelay
+    ) public {
         // Arrange
         vm.assume(newMinDelay > 0 && newMinDelay <= 14 days);
         bytes memory encodedValue = abi.encode(newMinDelay);
@@ -211,7 +213,9 @@ contract TimelockTest is Test, TestConstants {
         assertEq(timelock.getMinDelay(), newMinDelay);
     }
 
-    function testFuzz_updateParam_minDelay_invalidValues(uint256 newMinDelay) public {
+    function testFuzz_updateParam_minDelay_invalidValues(
+        uint256 newMinDelay
+    ) public {
         // Arrange
         vm.assume(newMinDelay == 0 || newMinDelay > 14 days);
         bytes memory encodedValue = abi.encode(newMinDelay);

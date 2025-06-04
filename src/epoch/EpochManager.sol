@@ -125,9 +125,11 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * @dev Safely notify a single module
      * @param moduleAddress Module address
      */
-    function _safeNotifyModule(address moduleAddress) internal {
+    function _safeNotifyModule(
+        address moduleAddress
+    ) internal {
         if (moduleAddress != address(0)) {
-            try IReconfigurableModule(moduleAddress).onNewEpoch() {}
+            try IReconfigurableModule(moduleAddress).onNewEpoch() { }
             catch Error(string memory reason) {
                 emit ModuleNotificationFailed(moduleAddress, bytes(reason));
             } catch (bytes memory lowLevelData) {

@@ -67,7 +67,9 @@ interface IGovToken {
      * @param amount Amount to burn (ignored)
      * @notice This function is disabled and will always revert
      */
-    function burn(uint256 amount) external;
+    function burn(
+        uint256 amount
+    ) external;
 
     /**
      * @dev Burn tokens from account (disabled - will always revert)

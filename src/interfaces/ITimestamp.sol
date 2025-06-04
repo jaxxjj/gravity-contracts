@@ -57,5 +57,7 @@ interface ITimestamp {
      * @param timestamp The timestamp to verify in microseconds
      * @return Whether the timestamp is greater than or equal to current timestamp
      */
-    function isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) external view returns (bool);
+    function isGreaterThanOrEqualCurrentTimestamp(
+        uint64 timestamp
+    ) external view returns (bool);
 }

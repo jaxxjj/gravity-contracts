@@ -63,12 +63,13 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 提交slash提案 - 预留实现
      */
-    function proposeSlash(address validator, uint256 amount, SlashType slashType, bytes32 evidence, uint256 blockNumber)
-        external
-        override
-        onlySlasher
-        returns (uint256 proposalId)
-    {
+    function proposeSlash(
+        address validator,
+        uint256 amount,
+        SlashType slashType,
+        bytes32 evidence,
+        uint256 blockNumber
+    ) external override onlySlasher returns (uint256 proposalId) {
         // TODO: 实现slash提案逻辑
         // 1. 验证参数有效性
         // 2. 检查验证者状态
@@ -81,7 +82,9 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 执行slash - 预留实现
      */
-    function executeSlash(uint256 proposalId) external override {
+    function executeSlash(
+        uint256 proposalId
+    ) external override {
         // TODO: 实现slash执行逻辑
         // 1. 验证提案状态
         // 2. 执行资金slash
@@ -94,7 +97,9 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 取消slash提案 - 预留实现
      */
-    function cancelSlash(uint256 proposalId) external override {
+    function cancelSlash(
+        uint256 proposalId
+    ) external override {
         // TODO: 实现取消逻辑
         // 1. 验证权限
         // 2. 检查提案状态
@@ -117,7 +122,9 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 设置最小slash金额 - 预留实现
      */
-    function setMinSlashAmount(uint256 amount) external override onlySystemCaller {
+    function setMinSlashAmount(
+        uint256 amount
+    ) external override onlySystemCaller {
         _minSlashAmount = amount;
         // TODO: 添加事件和验证
     }
@@ -125,7 +132,9 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 设置最大slash金额 - 预留实现
      */
-    function setMaxSlashAmount(uint256 amount) external override onlySystemCaller {
+    function setMaxSlashAmount(
+        uint256 amount
+    ) external override onlySystemCaller {
         _maxSlashAmount = amount;
         // TODO: 添加事件和验证
     }
@@ -135,21 +144,27 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 获取slash记录
      */
-    function getSlashRecord(uint256 proposalId) external view override returns (SlashRecord memory) {
+    function getSlashRecord(
+        uint256 proposalId
+    ) external view override returns (SlashRecord memory) {
         return _slashRecords[proposalId];
     }
 
     /**
      * @dev 获取验证者slash历史
      */
-    function getValidatorSlashHistory(address validator) external view override returns (uint256[] memory) {
+    function getValidatorSlashHistory(
+        address validator
+    ) external view override returns (uint256[] memory) {
         return _validatorSlashHistory[validator];
     }
 
     /**
      * @dev 获取slash比例
      */
-    function getSlashPercentage(SlashType slashType) external view override returns (uint256) {
+    function getSlashPercentage(
+        SlashType slashType
+    ) external view override returns (uint256) {
         return _slashPercentages[slashType];
     }
 
@@ -186,14 +201,18 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 检查是否有slash权限
      */
-    function hasSlashPermission(address account) external view override returns (bool) {
+    function hasSlashPermission(
+        address account
+    ) external view override returns (bool) {
         return _slashers.contains(account);
     }
 
     /**
      * @dev 添加slash者
      */
-    function addSlasher(address slasher) external override onlySystemCaller {
+    function addSlasher(
+        address slasher
+    ) external override onlySystemCaller {
         require(slasher != address(0), "Slasher: invalid slasher address");
         _slashers.add(slasher);
         // TODO: 添加事件
@@ -202,7 +221,9 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 移除slash者
      */
-    function removeSlasher(address slasher) external override onlySystemCaller {
+    function removeSlasher(
+        address slasher
+    ) external override onlySystemCaller {
         _slashers.remove(slasher);
         // TODO: 添加事件
     }
@@ -212,11 +233,12 @@ contract Slasher is ISlasher, System {
     /**
      * @dev 验证slash参数 - 预留实现
      */
-    function _validateSlashParams(address validator, uint256 amount, SlashType slashType, bytes32 evidence)
-        internal
-        view
-        returns (bool)
-    {
+    function _validateSlashParams(
+        address validator,
+        uint256 amount,
+        SlashType slashType,
+        bytes32 evidence
+    ) internal view returns (bool) {
         // TODO: 实现参数验证
         validator;
         amount;

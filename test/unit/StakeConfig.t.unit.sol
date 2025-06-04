@@ -406,7 +406,9 @@ contract StakeConfigTest is Test, TestConstants {
 
     // ============ FUZZ TESTS ============
 
-    function testFuzz_updateParam_minValidatorStake_validRange(uint256 newValue) public {
+    function testFuzz_updateParam_minValidatorStake_validRange(
+        uint256 newValue
+    ) public {
         // Arrange
         vm.assume(newValue > 0 && newValue <= stakeConfig.maximumStake());
         bytes memory encodedValue = abi.encode(newValue);
@@ -419,7 +421,9 @@ contract StakeConfigTest is Test, TestConstants {
         assertEq(stakeConfig.minValidatorStake(), newValue);
     }
 
-    function testFuzz_isValidStakeAmount_edgeCases(uint256 amount) public view {
+    function testFuzz_isValidStakeAmount_edgeCases(
+        uint256 amount
+    ) public view {
         // Act
         bool isValid = stakeConfig.isValidStakeAmount(amount);
 

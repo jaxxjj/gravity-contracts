@@ -20,7 +20,9 @@ interface IGroth16Verifier {
      * @param proof 未压缩的Groth16证明。元素按照与verifyProof相同的顺序。即按照EIP-197编码的Groth16点(A, B, C)
      * @return compressed 压缩的证明。元素按照与verifyCompressedProof相同的顺序。即压缩格式的点(A, B, C)
      */
-    function compressProof(uint256[8] calldata proof) external view returns (uint256[4] memory compressed);
+    function compressProof(
+        uint256[8] calldata proof
+    ) external view returns (uint256[4] memory compressed);
 
     /**
      * @dev 验证带有压缩点的Groth16证明

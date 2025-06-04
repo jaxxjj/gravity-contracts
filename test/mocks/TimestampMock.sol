@@ -23,7 +23,9 @@ contract TimestampMock {
         return (lastCall.proposer, lastCall.timestampMicros, lastCall.callCount);
     }
 
-    function setCurrentTime(uint256 timeInSeconds) external {
+    function setCurrentTime(
+        uint256 timeInSeconds
+    ) external {
         mockCurrentTime = timeInSeconds;
     }
 

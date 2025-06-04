@@ -60,7 +60,9 @@ interface IStakeCredit {
      * @param delegator The delegator address
      * @return shares The number of shares minted
      */
-    function delegate(address delegator) external payable returns (uint256 shares);
+    function delegate(
+        address delegator
+    ) external payable returns (uint256 shares);
 
     /**
      * @dev Unlock stake (moves from active to pending_inactive)
@@ -90,7 +92,9 @@ interface IStakeCredit {
      * @dev Distribute rewards to the stake pool
      * @param commissionRate The commission rate (base: 10000)
      */
-    function distributeReward(uint64 commissionRate) external payable;
+    function distributeReward(
+        uint64 commissionRate
+    ) external payable;
 
     /**
      * @dev Process epoch transition
@@ -101,34 +105,44 @@ interface IStakeCredit {
      * @dev Update the beneficiary address
      * @param newBeneficiary The new beneficiary address
      */
-    function updateBeneficiary(address newBeneficiary) external;
+    function updateBeneficiary(
+        address newBeneficiary
+    ) external;
 
     /**
      * @dev Claim unlocked stake after unbonding period
      * @param delegator The address to claim for
      * @return totalClaimed The amount claimed
      */
-    function claim(address payable delegator) external returns (uint256 totalClaimed);
+    function claim(
+        address payable delegator
+    ) external returns (uint256 totalClaimed);
 
     /**
      * @dev Get claimable amount for a delegator
      * @param delegator The address to check
      * @return claimable The amount that can be claimed
      */
-    function getClaimableAmount(address delegator) external view returns (uint256 claimable);
+    function getClaimableAmount(
+        address delegator
+    ) external view returns (uint256 claimable);
 
     /**
      * @dev Get pending unlock amount for a delegator
      * @param delegator The address to check
      * @return The total amount pending unlock
      */
-    function getPendingUnlockAmount(address delegator) external view returns (uint256);
+    function getPendingUnlockAmount(
+        address delegator
+    ) external view returns (uint256);
 
     /**
      * @dev Process matured unlocks for a specific user
      * @param user The user address to process unlocks for
      */
-    function processUserUnlocks(address user) external;
+    function processUserUnlocks(
+        address user
+    ) external;
 
     // ======== View Functions ========
 
@@ -173,14 +187,18 @@ interface IStakeCredit {
      * @param day The day index (timestamp / 86400)
      * @return Reward amount for the specified day
      */
-    function rewardRecord(uint256 day) external view returns (uint256);
+    function rewardRecord(
+        uint256 day
+    ) external view returns (uint256);
 
     /**
      * @dev Get the total pooled G record for a specific day
      * @param day The day index (timestamp / 86400)
      * @return Total pooled G amount for the specified day
      */
-    function totalPooledGRecord(uint256 day) external view returns (uint256);
+    function totalPooledGRecord(
+        uint256 day
+    ) external view returns (uint256);
 
     /**
      * @dev Get the current unlock request status
@@ -194,21 +212,27 @@ interface IStakeCredit {
      * @param shares The number of shares
      * @return The corresponding G amount
      */
-    function getPooledGByShares(uint256 shares) external view returns (uint256);
+    function getPooledGByShares(
+        uint256 shares
+    ) external view returns (uint256);
 
     /**
      * @dev Get the G amount owned by a delegator
      * @param delegator The delegator address
      * @return The G amount owned by the delegator
      */
-    function getPooledGByDelegator(address delegator) external view returns (uint256);
+    function getPooledGByDelegator(
+        address delegator
+    ) external view returns (uint256);
 
     /**
      * @dev Convert G amount to shares
      * @param gAmount The G amount
      * @return The corresponding number of shares
      */
-    function getSharesByPooledG(uint256 gAmount) external view returns (uint256);
+    function getSharesByPooledG(
+        uint256 gAmount
+    ) external view returns (uint256);
 
     /**
      * @dev Get the total pooled G amount

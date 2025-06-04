@@ -21,7 +21,9 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     error InvalidValidator();
 
     // ======== Modifiers ========
-    modifier validatorExists(address validator) {
+    modifier validatorExists(
+        address validator
+    ) {
         if (!IValidatorManager(VALIDATOR_MANAGER_ADDR).isValidatorExists(validator)) {
             revert Delegation__ValidatorNotRegistered(validator);
         }
@@ -29,7 +31,9 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     }
 
     /// @inheritdoc IDelegation
-    function delegate(address validator) external payable whenNotPaused validatorExists(validator) {
+    function delegate(
+        address validator
+    ) external payable whenNotPaused validatorExists(validator) {
         uint256 amount = msg.value;
         if (amount < IStakeConfig(STAKE_CONFIG_ADDR).minDelegationChange()) {
             revert Delegation__LessThanMinDelegationChange();
@@ -40,7 +44,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         // Get StakeCredit address
         address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
 
-        uint256 shares = IStakeCredit(stakeCreditAddress).delegate{value: amount}(delegator);
+        uint256 shares = IStakeCredit(stakeCreditAddress).delegate{ value: amount }(delegator);
 
         // Check voting power increase limit
         IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(msg.value);
@@ -51,12 +55,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     }
 
     /// @inheritdoc IDelegation
-    function undelegate(address validator, uint256 shares)
-        external
-        validatorExists(validator)
-        whenNotPaused
-        notInBlackList
-    {
+    function undelegate(
+        address validator,
+        uint256 shares
+    ) external validatorExists(validator) whenNotPaused notInBlackList {
         if (shares == 0) {
             revert Delegation__ZeroShares();
         }
@@ -81,7 +83,9 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param validator The validator to claim from
      * @return amount The amount claimed
      */
-    function claim(address validator) external nonReentrant returns (uint256 amount) {
+    function claim(
+        address validator
+    ) external nonReentrant returns (uint256 amount) {
         address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
         if (stakeCreditAddress == address(0)) revert InvalidValidator();
 
@@ -100,7 +104,9 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param validators Array of validator addresses to claim from
      * @return totalClaimed Total amount claimed
      */
-    function claimBatch(address[] calldata validators) external nonReentrant returns (uint256 totalClaimed) {
+    function claimBatch(
+        address[] calldata validators
+    ) external nonReentrant returns (uint256 totalClaimed) {
         for (uint256 i = 0; i < validators.length; i++) {
             address stakeCreditAddress =
                 IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validators[i]);
@@ -126,7 +132,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         uint256 feeCharge = (amount * feeRate) / IStakeConfig(STAKE_CONFIG_ADDR).PERCENTAGE_BASE();
 
         if (feeCharge > 0) {
-            (bool success,) = dstStakeCredit.call{value: feeCharge}("");
+            (bool success,) = dstStakeCredit.call{ value: feeCharge }("");
             if (!success) {
                 revert Delegation__TransferFailed();
             }
@@ -136,14 +142,12 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     }
 
     /// @inheritdoc IDelegation
-    function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower)
-        external
-        whenNotPaused
-        notInBlackList
-        validatorExists(srcValidator)
-        validatorExists(dstValidator)
-        nonReentrant
-    {
+    function redelegate(
+        address srcValidator,
+        address dstValidator,
+        uint256 shares,
+        bool delegateVotePower
+    ) external whenNotPaused notInBlackList validatorExists(srcValidator) validatorExists(dstValidator) nonReentrant {
         // Basic checks
         if (shares == 0) revert Delegation__ZeroShares();
         if (srcValidator == dstValidator) revert Delegation__SameValidator();
@@ -172,7 +176,7 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         uint256 netAmount = _calculateAndChargeFee(dstStakeCredit, amount);
 
         // Delegate to destination validator
-        uint256 newShares = IStakeCredit(dstStakeCredit).delegate{value: netAmount}(delegator);
+        uint256 newShares = IStakeCredit(dstStakeCredit).delegate{ value: netAmount }(delegator);
 
         // Check voting power increase limit
         IValidatorManager(VALIDATOR_MANAGER_ADDR).checkVotingPowerIncrease(netAmount);
@@ -207,7 +211,9 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
     }
 
     /// @inheritdoc IDelegation
-    function delegateVoteTo(address voter) external whenNotPaused notInBlackList {
+    function delegateVoteTo(
+        address voter
+    ) external whenNotPaused notInBlackList {
         IGovToken(GOV_TOKEN_ADDR).delegateVote(msg.sender, voter);
         emit VoteDelegated(msg.sender, voter);
     }

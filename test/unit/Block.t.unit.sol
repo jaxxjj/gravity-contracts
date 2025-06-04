@@ -6,7 +6,7 @@ import "@src/block/Block.sol";
 import "@test/mocks/ValidatorManagerMock.sol";
 import "@test/mocks/ValidatorPerformanceTrackerMock.sol";
 import "@test/mocks/TimestampMock.sol";
-import {IBlock} from "@src/interfaces/IBlock.sol";
+import { IBlock } from "@src/interfaces/IBlock.sol";
 import "@test/mocks/EpochManagerMock.sol";
 import "@test/utils/TestConstants.sol";
 

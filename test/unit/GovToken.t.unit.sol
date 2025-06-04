@@ -394,7 +394,9 @@ contract GovTokenTest is Test, TestConstants {
 
     // ============ FUZZ TESTS ============
 
-    function testFuzz_sync_validAmounts(uint256 amount) public {
+    function testFuzz_sync_validAmounts(
+        uint256 amount
+    ) public {
         // Arrange - Use much more conservative bounds to avoid ERC20 safe supply issues
         vm.assume(amount > 0 && amount <= 1e30); // Max 1 billion tokens with 18 decimals
         mockStakeCredit.setTotalPooledG(amount);
@@ -408,7 +410,9 @@ contract GovTokenTest is Test, TestConstants {
         assertEq(govToken.mintedMap(address(mockStakeCredit), user1), amount);
     }
 
-    function testFuzz_delegateVote_validAddresses(address delegatee) public {
+    function testFuzz_delegateVote_validAddresses(
+        address delegatee
+    ) public {
         // Arrange
         vm.assume(delegatee != address(0));
         mockStakeCredit.setTotalPooledG(1000 ether);

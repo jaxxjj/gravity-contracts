@@ -81,21 +81,29 @@ interface ISlasher {
      * @param blockNumber 违规区块号
      * @return proposalId 提案ID
      */
-    function proposeSlash(address validator, uint256 amount, SlashType slashType, bytes32 evidence, uint256 blockNumber)
-        external
-        returns (uint256 proposalId);
+    function proposeSlash(
+        address validator,
+        uint256 amount,
+        SlashType slashType,
+        bytes32 evidence,
+        uint256 blockNumber
+    ) external returns (uint256 proposalId);
 
     /**
      * @dev 执行slash
      * @param proposalId 提案ID
      */
-    function executeSlash(uint256 proposalId) external;
+    function executeSlash(
+        uint256 proposalId
+    ) external;
 
     /**
      * @dev 取消slash提案
      * @param proposalId 提案ID
      */
-    function cancelSlash(uint256 proposalId) external;
+    function cancelSlash(
+        uint256 proposalId
+    ) external;
 
     // ======== slash参数配置 ========
 
@@ -110,13 +118,17 @@ interface ISlasher {
      * @dev 设置最小slash金额
      * @param amount 最小slash金额
      */
-    function setMinSlashAmount(uint256 amount) external;
+    function setMinSlashAmount(
+        uint256 amount
+    ) external;
 
     /**
      * @dev 设置最大slash金额
      * @param amount 最大slash金额
      */
-    function setMaxSlashAmount(uint256 amount) external;
+    function setMaxSlashAmount(
+        uint256 amount
+    ) external;
 
     // ======== 查询接口 ========
 
@@ -125,21 +137,27 @@ interface ISlasher {
      * @param proposalId 提案ID
      * @return slash记录
      */
-    function getSlashRecord(uint256 proposalId) external view returns (SlashRecord memory);
+    function getSlashRecord(
+        uint256 proposalId
+    ) external view returns (SlashRecord memory);
 
     /**
      * @dev 获取验证者slash历史
      * @param validator 验证者地址
      * @return proposalIds 提案ID数组
      */
-    function getValidatorSlashHistory(address validator) external view returns (uint256[] memory proposalIds);
+    function getValidatorSlashHistory(
+        address validator
+    ) external view returns (uint256[] memory proposalIds);
 
     /**
      * @dev 获取slash比例
      * @param slashType slash类型
      * @return percentage slash比例
      */
-    function getSlashPercentage(SlashType slashType) external view returns (uint256 percentage);
+    function getSlashPercentage(
+        SlashType slashType
+    ) external view returns (uint256 percentage);
 
     /**
      * @dev 检查验证者是否可以被slash
@@ -164,17 +182,23 @@ interface ISlasher {
      * @param account 账户地址
      * @return 是否有权限
      */
-    function hasSlashPermission(address account) external view returns (bool);
+    function hasSlashPermission(
+        address account
+    ) external view returns (bool);
 
     /**
      * @dev 添加slash者
      * @param slasher slash者地址
      */
-    function addSlasher(address slasher) external;
+    function addSlasher(
+        address slasher
+    ) external;
 
     /**
      * @dev 移除slash者
      * @param slasher slash者地址
      */
-    function removeSlasher(address slasher) external;
+    function removeSlasher(
+        address slasher
+    ) external;
 }

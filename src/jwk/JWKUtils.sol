@@ -26,16 +26,17 @@ library JWKUtils {
      * @param e 公共指数 (通常是 "AQAB")
      * @param n 模数 (Base64URL编码)
      */
-    function newRSAJWK(string memory kid, string memory alg, string memory e, string memory n)
-        internal
-        pure
-        returns (IJWKManager.JWK memory)
-    {
+    function newRSAJWK(
+        string memory kid,
+        string memory alg,
+        string memory e,
+        string memory n
+    ) internal pure returns (IJWKManager.JWK memory) {
         if (bytes(kid).length == 0) revert EmptyKid();
         if (bytes(e).length == 0) revert EmptyExponent();
         if (bytes(n).length == 0) revert EmptyModulus();
 
-        IJWKManager.RSA_JWK memory rsaJWK = IJWKManager.RSA_JWK({kid: kid, kty: "RSA", alg: alg, e: e, n: n});
+        IJWKManager.RSA_JWK memory rsaJWK = IJWKManager.RSA_JWK({ kid: kid, kty: "RSA", alg: alg, e: e, n: n });
 
         return IJWKManager.JWK({
             variant: 0, // RSA_JWK
@@ -49,7 +50,7 @@ library JWKUtils {
      * @param payload JWK原始数据
      */
     function newUnsupportedJWK(bytes memory id, bytes memory payload) internal pure returns (IJWKManager.JWK memory) {
-        IJWKManager.UnsupportedJWK memory unsupportedJWK = IJWKManager.UnsupportedJWK({id: id, payload: payload});
+        IJWKManager.UnsupportedJWK memory unsupportedJWK = IJWKManager.UnsupportedJWK({ id: id, payload: payload });
 
         return IJWKManager.JWK({
             variant: 1, // UnsupportedJWK
@@ -67,7 +68,7 @@ library JWKUtils {
             patchType: IJWKManager.PatchType.RemoveAll,
             issuer: "",
             jwkId: "",
-            jwk: IJWKManager.JWK({variant: 0, data: ""})
+            jwk: IJWKManager.JWK({ variant: 0, data: "" })
         });
     }
 
@@ -75,12 +76,14 @@ library JWKUtils {
      * @dev 创建"移除发行者"补丁
      * @param issuer 要移除的发行者
      */
-    function newPatchRemoveIssuer(string memory issuer) internal pure returns (IJWKManager.Patch memory) {
+    function newPatchRemoveIssuer(
+        string memory issuer
+    ) internal pure returns (IJWKManager.Patch memory) {
         return IJWKManager.Patch({
             patchType: IJWKManager.PatchType.RemoveIssuer,
             issuer: issuer,
             jwkId: "",
-            jwk: IJWKManager.JWK({variant: 0, data: ""})
+            jwk: IJWKManager.JWK({ variant: 0, data: "" })
         });
     }
 
@@ -89,16 +92,15 @@ library JWKUtils {
      * @param issuer 发行者
      * @param jwkId 要移除的JWK ID
      */
-    function newPatchRemoveJWK(string memory issuer, bytes memory jwkId)
-        internal
-        pure
-        returns (IJWKManager.Patch memory)
-    {
+    function newPatchRemoveJWK(
+        string memory issuer,
+        bytes memory jwkId
+    ) internal pure returns (IJWKManager.Patch memory) {
         return IJWKManager.Patch({
             patchType: IJWKManager.PatchType.RemoveJWK,
             issuer: issuer,
             jwkId: jwkId,
-            jwk: IJWKManager.JWK({variant: 0, data: ""})
+            jwk: IJWKManager.JWK({ variant: 0, data: "" })
         });
     }
 
@@ -107,12 +109,11 @@ library JWKUtils {
      * @param issuer 发行者
      * @param jwk 要插入或更新的JWK
      */
-    function newPatchUpsertJWK(string memory issuer, IJWKManager.JWK memory jwk)
-        internal
-        pure
-        returns (IJWKManager.Patch memory)
-    {
-        return IJWKManager.Patch({patchType: IJWKManager.PatchType.UpsertJWK, issuer: issuer, jwkId: "", jwk: jwk});
+    function newPatchUpsertJWK(
+        string memory issuer,
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (IJWKManager.Patch memory) {
+        return IJWKManager.Patch({ patchType: IJWKManager.PatchType.UpsertJWK, issuer: issuer, jwkId: "", jwk: jwk });
     }
 
     // ======== JWK操作函数 ========
@@ -122,7 +123,9 @@ library JWKUtils {
      * @param jwk JWK结构体
      * @return JWK的ID
      */
-    function getJWKId(IJWKManager.JWK memory jwk) internal pure returns (bytes memory) {
+    function getJWKId(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (bytes memory) {
         if (jwk.variant == 0) {
             // RSA_JWK
             IJWKManager.RSA_JWK memory rsaJWK = abi.decode(jwk.data, (IJWKManager.RSA_JWK));
@@ -141,7 +144,9 @@ library JWKUtils {
      * @param jwk JWK结构体
      * @return RSA JWK结构体
      */
-    function toRSAJWK(IJWKManager.JWK memory jwk) internal pure returns (IJWKManager.RSA_JWK memory) {
+    function toRSAJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (IJWKManager.RSA_JWK memory) {
         if (jwk.variant != 0) revert InvalidJWKType();
         return abi.decode(jwk.data, (IJWKManager.RSA_JWK));
     }
@@ -151,7 +156,9 @@ library JWKUtils {
      * @param jwk JWK结构体
      * @return 不支持的JWK结构体
      */
-    function toUnsupportedJWK(IJWKManager.JWK memory jwk) internal pure returns (IJWKManager.UnsupportedJWK memory) {
+    function toUnsupportedJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (IJWKManager.UnsupportedJWK memory) {
         if (jwk.variant != 1) revert InvalidJWKType();
         return abi.decode(jwk.data, (IJWKManager.UnsupportedJWK));
     }
@@ -161,7 +168,9 @@ library JWKUtils {
      * @param jwk JWK结构体
      * @return 如果是RSA类型返回true
      */
-    function isRSAJWK(IJWKManager.JWK memory jwk) internal pure returns (bool) {
+    function isRSAJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (bool) {
         return jwk.variant == 0;
     }
 
@@ -170,7 +179,9 @@ library JWKUtils {
      * @param jwk JWK结构体
      * @return 如果是不支持类型返回true
      */
-    function isUnsupportedJWK(IJWKManager.JWK memory jwk) internal pure returns (bool) {
+    function isUnsupportedJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (bool) {
         return jwk.variant == 1;
     }
 
@@ -181,7 +192,9 @@ library JWKUtils {
      * @param rsaJWK RSA JWK结构体
      * @return 验证是否通过
      */
-    function validateRSAJWK(IJWKManager.RSA_JWK memory rsaJWK) internal pure returns (bool) {
+    function validateRSAJWK(
+        IJWKManager.RSA_JWK memory rsaJWK
+    ) internal pure returns (bool) {
         // 检查必要字段
         if (bytes(rsaJWK.kid).length == 0) return false;
         if (bytes(rsaJWK.e).length == 0) return false;
@@ -198,7 +211,9 @@ library JWKUtils {
      * @param provider OIDC提供者结构体
      * @return 验证是否通过
      */
-    function validateOIDCProvider(IJWKManager.OIDCProvider memory provider) internal pure returns (bool) {
+    function validateOIDCProvider(
+        IJWKManager.OIDCProvider memory provider
+    ) internal pure returns (bool) {
         if (bytes(provider.name).length == 0) return false;
         if (bytes(provider.configUrl).length == 0) return false;
 
@@ -261,7 +276,9 @@ library JWKUtils {
      * @param allJWKs AllProvidersJWKs结构体
      * @return 哈希值
      */
-    function hashAllProvidersJWKs(IJWKManager.AllProvidersJWKs memory allJWKs) internal pure returns (bytes32) {
+    function hashAllProvidersJWKs(
+        IJWKManager.AllProvidersJWKs memory allJWKs
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(allJWKs));
     }
 
@@ -270,7 +287,9 @@ library JWKUtils {
      * @param providerJWKs ProviderJWKs结构体
      * @return 哈希值
      */
-    function hashProviderJWKs(IJWKManager.ProviderJWKs memory providerJWKs) internal pure returns (bytes32) {
+    function hashProviderJWKs(
+        IJWKManager.ProviderJWKs memory providerJWKs
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(providerJWKs));
     }
 }
@@ -296,11 +315,12 @@ contract JWKManagerFactory {
      * @param ns 模数数组
      * @return 创建的JWK数组
      */
-    function createRSAJWKs(string[] memory kids, string[] memory algs, string[] memory es, string[] memory ns)
-        external
-        pure
-        returns (IJWKManager.JWK[] memory)
-    {
+    function createRSAJWKs(
+        string[] memory kids,
+        string[] memory algs,
+        string[] memory es,
+        string[] memory ns
+    ) external pure returns (IJWKManager.JWK[] memory) {
         require(
             kids.length == algs.length && kids.length == es.length && kids.length == ns.length, "Array length mismatch"
         );
@@ -329,7 +349,9 @@ contract JWKManagerFactory {
      * @param issuers 要移除的发行者数组
      * @return 补丁数组
      */
-    function createRemoveIssuerPatches(string[] memory issuers) external pure returns (IJWKManager.Patch[] memory) {
+    function createRemoveIssuerPatches(
+        string[] memory issuers
+    ) external pure returns (IJWKManager.Patch[] memory) {
         IJWKManager.Patch[] memory patches = new IJWKManager.Patch[](issuers.length);
         for (uint256 i = 0; i < issuers.length; i++) {
             patches[i] = JWKUtils.newPatchRemoveIssuer(issuers[i]);
@@ -343,11 +365,10 @@ contract JWKManagerFactory {
      * @param jwks 新的JWK数组
      * @return 补丁数组（先移除发行者，再逐个添加JWK）
      */
-    function createReplaceIssuerJWKsPatches(string memory issuer, IJWKManager.JWK[] memory jwks)
-        external
-        pure
-        returns (IJWKManager.Patch[] memory)
-    {
+    function createReplaceIssuerJWKsPatches(
+        string memory issuer,
+        IJWKManager.JWK[] memory jwks
+    ) external pure returns (IJWKManager.Patch[] memory) {
         IJWKManager.Patch[] memory patches = new IJWKManager.Patch[](jwks.length + 1);
 
         // 第一个补丁：移除现有发行者
@@ -368,7 +389,9 @@ contract JWKManagerFactory {
      * @param jwks JWK数组
      * @return 验证结果数组
      */
-    function validateRSAJWKs(IJWKManager.JWK[] memory jwks) external pure returns (bool[] memory) {
+    function validateRSAJWKs(
+        IJWKManager.JWK[] memory jwks
+    ) external pure returns (bool[] memory) {
         bool[] memory results = new bool[](jwks.length);
         for (uint256 i = 0; i < jwks.length; i++) {
             if (jwks[i].isRSAJWK()) {
@@ -386,7 +409,9 @@ contract JWKManagerFactory {
      * @param jwks JWK数组
      * @return JWK ID数组
      */
-    function extractJWKIds(IJWKManager.JWK[] memory jwks) external pure returns (bytes[] memory) {
+    function extractJWKIds(
+        IJWKManager.JWK[] memory jwks
+    ) external pure returns (bytes[] memory) {
         bytes[] memory ids = new bytes[](jwks.length);
         for (uint256 i = 0; i < jwks.length; i++) {
             ids[i] = jwks[i].getJWKId();

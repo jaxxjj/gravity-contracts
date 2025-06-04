@@ -181,7 +181,7 @@ contract GovHubTest is Test, TestConstants {
         // Arrange
         address nonContractTarget = address(0x1234);
         GovHub.ParamChangePackage memory proposal =
-            GovHub.ParamChangePackage({key: TEST_KEY, value: TEST_VALUE, target: nonContractTarget});
+            GovHub.ParamChangePackage({ key: TEST_KEY, value: TEST_VALUE, target: nonContractTarget });
 
         // Act
         // We need to expose notifyUpdates for testing
@@ -320,7 +320,9 @@ contract GovHubTest is Test, TestConstants {
         assertEq(mockSubscriber.lastValue(), value);
     }
 
-    function testFuzz_updateParam_unauthorizedCaller(address caller) public {
+    function testFuzz_updateParam_unauthorizedCaller(
+        address caller
+    ) public {
         // Arrange
         vm.assume(caller != TIMELOCK_ADDR);
         address target = address(mockSubscriber);

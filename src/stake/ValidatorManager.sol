@@ -64,28 +64,36 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     /*----------------- Modifiers -----------------*/
 
-    modifier validatorExists(address validator) {
+    modifier validatorExists(
+        address validator
+    ) {
         if (!validatorInfos[validator].registered) {
             revert ValidatorNotExists(validator);
         }
         _;
     }
 
-    modifier onlyValidatorSelf(address validator) {
+    modifier onlyValidatorSelf(
+        address validator
+    ) {
         if (msg.sender != validator) {
             revert NotValidator(msg.sender, validator);
         }
         _;
     }
 
-    modifier validAddress(address addr) {
+    modifier validAddress(
+        address addr
+    ) {
         if (addr == address(0)) {
             revert InvalidAddress(address(0));
         }
         _;
     }
 
-    modifier onlyValidatorOperator(address validator) {
+    modifier onlyValidatorOperator(
+        address validator
+    ) {
         if (!hasOperatorPermission(validator, msg.sender)) {
             revert UnauthorizedCaller(msg.sender, validator);
         }
@@ -117,7 +125,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         initialized = true;
 
         // initialize ValidatorSetData
-        validatorSetData = ValidatorSetData({totalVotingPower: 0, totalJoiningPower: 0});
+        validatorSetData = ValidatorSetData({ totalVotingPower: 0, totalJoiningPower: 0 });
 
         // add initial validators
         for (uint256 i = 0; i < validatorAddresses.length; i++) {
@@ -138,7 +146,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                     rate: 0,
                     maxRate: 5000, // default max commission rate 50%
                     maxChangeRate: 500 // default max daily change rate 5%
-                }),
+                 }),
                 moniker: string(abi.encodePacked("VAL", uint256(i))), // generate default name
                 createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 registered: true,
@@ -149,7 +157,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 lastEpochActive: 0,
                 updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 operator: validator // default self as operator
-            });
+             });
 
             // Add to active validators set
             activeValidators.add(validator);
@@ -174,12 +182,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function registerValidator(ValidatorRegistrationParams calldata params)
-        external
-        payable
-        nonReentrant
-        whenNotPaused
-    {
+    function registerValidator(
+        ValidatorRegistrationParams calldata params
+    ) external payable nonReentrant whenNotPaused {
         address validator = msg.sender;
 
         // validate params
@@ -209,7 +214,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         _monikerSet[monikerHash] = true;
 
         // initial stake
-        StakeCredit(payable(stakeCreditAddress)).delegate{value: msg.value}(validator);
+        StakeCredit(payable(stakeCreditAddress)).delegate{ value: msg.value }(validator);
 
         emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
         emit StakeCreditDeployed(validator, stakeCreditAddress);
@@ -218,10 +223,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev validate registration params
      */
-    function _validateRegistrationParams(address validator, ValidatorRegistrationParams calldata params)
-        internal
-        view
-    {
+    function _validateRegistrationParams(
+        address validator,
+        ValidatorRegistrationParams calldata params
+    ) internal view {
         if (validatorInfos[validator].registered) {
             revert ValidatorAlreadyExists(validator);
         }
@@ -329,7 +334,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function joinValidatorSet(address validator)
+    function joinValidatorSet(
+        address validator
+    )
         external
         whenNotPaused
         whenValidatorSetChangeAllowed
@@ -384,7 +391,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function leaveValidatorSet(address validator)
+    function leaveValidatorSet(
+        address validator
+    )
         external
         whenNotPaused
         whenValidatorSetChangeAllowed
@@ -475,7 +484,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev get validator state
      */
-    function getValidatorState(address validator) public view returns (uint8) {
+    function getValidatorState(
+        address validator
+    ) public view returns (uint8) {
         if (!validatorInfos[validator].registered) {
             return uint8(ValidatorStatus.INACTIVE);
         }
@@ -483,7 +494,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function getValidatorInfo(address validator) external view returns (ValidatorInfo memory) {
+    function getValidatorInfo(
+        address validator
+    ) external view returns (ValidatorInfo memory) {
         return validatorInfos[validator];
     }
 
@@ -493,7 +506,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function isCurrentValidator(address validator) external view returns (bool) {
+    function isCurrentValidator(
+        address validator
+    ) external view returns (bool) {
         return validatorInfos[validator].status == ValidatorStatus.ACTIVE;
     }
 
@@ -503,11 +518,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function updateConsensusKey(address validator, bytes calldata newConsensusKey)
-        external
-        validatorExists(validator)
-        onlyValidatorOperator(validator)
-    {
+    function updateConsensusKey(
+        address validator,
+        bytes calldata newConsensusKey
+    ) external validatorExists(validator) onlyValidatorOperator(validator) {
         // check if new consensus address is duplicate and not from the same validator
         if (
             newConsensusKey.length > 0 && consensusToValidator[newConsensusKey] != address(0)
@@ -534,11 +548,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function updateCommissionRate(address validator, uint64 newCommissionRate)
-        external
-        validatorExists(validator)
-        onlyValidatorOperator(validator)
-    {
+    function updateCommissionRate(
+        address validator,
+        uint64 newCommissionRate
+    ) external validatorExists(validator) onlyValidatorOperator(validator) {
         ValidatorInfo storage info = validatorInfos[validator];
 
         // check update frequency
@@ -570,11 +583,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof)
-        external
-        validatorExists(validator)
-        onlyValidatorOperator(validator)
-    {
+    function updateVoteAddress(
+        address validator,
+        bytes calldata newVoteAddress,
+        bytes calldata blsProof
+    ) external validatorExists(validator) onlyValidatorOperator(validator) {
         // validate new vote address
         if (newVoteAddress.length > 0) {
             // BLS proof verification
@@ -612,7 +625,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev Activate pending validators
      */
-    function _activatePendingValidators(uint64 currentEpoch) internal {
+    function _activatePendingValidators(
+        uint64 currentEpoch
+    ) internal {
         address[] memory pendingValidators = pendingActive.values();
 
         for (uint256 i = 0; i < pendingValidators.length; i++) {
@@ -641,7 +656,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev Remove pending inactive validators
      */
-    function _removePendingInactiveValidators(uint64 currentEpoch) internal {
+    function _removePendingInactiveValidators(
+        uint64 currentEpoch
+    ) internal {
         address[] memory pendingInactiveValidators = pendingInactive.values();
 
         for (uint256 i = 0; i < pendingInactiveValidators.length; i++) {
@@ -703,12 +720,13 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 部署StakeCredit合约
      */
-    function _deployStakeCredit(address validator, string memory moniker, address beneficiary)
-        internal
-        returns (address)
-    {
+    function _deployStakeCredit(
+        address validator,
+        string memory moniker,
+        address beneficiary
+    ) internal returns (address) {
         address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
-        IStakeCredit(creditProxy).initialize{value: msg.value}(validator, moniker, beneficiary);
+        IStakeCredit(creditProxy).initialize{ value: msg.value }(validator, moniker, beneficiary);
         emit StakeCreditDeployed(validator, creditProxy);
 
         return creditProxy;
@@ -717,7 +735,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev get validator stake
      */
-    function _getValidatorStake(address validator) internal view returns (uint256) {
+    function _getValidatorStake(
+        address validator
+    ) internal view returns (uint256) {
         address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
         if (stakeCreditAddress == address(0)) {
             return 0;
@@ -730,7 +750,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev check voting power increase limit
      */
-    function _checkVotingPowerIncrease(uint256 increaseAmount) internal view {
+    function _checkVotingPowerIncrease(
+        uint256 increaseAmount
+    ) internal view {
         uint256 votingPowerIncreaseLimit = IStakeConfig(STAKE_CONFIG_ADDR).votingPowerIncreaseLimit();
 
         if (validatorSetData.totalVotingPower > 0) {
@@ -756,11 +778,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param blsProof BLS proof
      * @return Whether verification succeeded
      */
-    function _checkVoteAddress(address operatorAddress, bytes calldata voteAddress, bytes calldata blsProof)
-        internal
-        view
-        returns (bool)
-    {
+    function _checkVoteAddress(
+        address operatorAddress,
+        bytes calldata voteAddress,
+        bytes calldata blsProof
+    ) internal view returns (bool) {
         // check lengths
         if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
             return false;
@@ -824,11 +846,15 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function checkValidatorMinStake(address validator) external {
+    function checkValidatorMinStake(
+        address validator
+    ) external {
         _checkValidatorMinStake(validator);
     }
 
-    function _checkValidatorMinStake(address validator) internal {
+    function _checkValidatorMinStake(
+        address validator
+    ) internal {
         ValidatorInfo storage info = validatorInfos[validator];
         if (info.status == ValidatorStatus.ACTIVE) {
             uint256 validatorStake = _getValidatorStake(validator);
@@ -852,22 +878,30 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function getValidatorStakeCredit(address validator) external view returns (address) {
+    function getValidatorStakeCredit(
+        address validator
+    ) external view returns (address) {
         return validatorInfos[validator].stakeCreditAddress;
     }
 
     /// @inheritdoc IValidatorManager
-    function checkVotingPowerIncrease(uint256 increaseAmount) external view {
+    function checkVotingPowerIncrease(
+        uint256 increaseAmount
+    ) external view {
         _checkVotingPowerIncrease(increaseAmount);
     }
 
     /// @inheritdoc IValidatorManager
-    function isValidatorRegistered(address validator) external view override returns (bool) {
+    function isValidatorRegistered(
+        address validator
+    ) external view override returns (bool) {
         return validatorInfos[validator].registered;
     }
 
     /// @inheritdoc IValidatorManager
-    function isValidatorExists(address validator) external view returns (bool) {
+    function isValidatorExists(
+        address validator
+    ) external view returns (bool) {
         return validatorInfos[validator].registered;
     }
 
@@ -884,12 +918,16 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function isCurrentEpochValidator(address validator) public view override returns (bool) {
+    function isCurrentEpochValidator(
+        address validator
+    ) public view override returns (bool) {
         return validatorInfos[validator].status == ValidatorStatus.ACTIVE;
     }
 
     /// @inheritdoc IValidatorManager
-    function getValidatorStatus(address validator) external view override returns (ValidatorStatus) {
+    function getValidatorStatus(
+        address validator
+    ) external view override returns (ValidatorStatus) {
         if (!validatorInfos[validator].registered) {
             return ValidatorStatus.INACTIVE;
         }
@@ -897,7 +935,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function getValidatorVoteAddress(address validator) external view returns (bytes memory) {
+    function getValidatorVoteAddress(
+        address validator
+    ) external view returns (bytes memory) {
         return validatorInfos[validator].voteAddress;
     }
 
@@ -922,7 +962,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 rate: commissionRate,
                 maxRate: 5000, // default max commission rate 50%
                 maxChangeRate: 500 // default max daily change rate 5%
-            }),
+             }),
             moniker: moniker,
             createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
             registered: true,
@@ -933,7 +973,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             lastEpochActive: 0,
             updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
             operator: validator // Default to self
-        });
+         });
     }
 
     /**
@@ -941,7 +981,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param validator Validator address
      * @return Validator index, may return 0 or revert if not active
      */
-    function getValidatorIndex(address validator) external view returns (uint64) {
+    function getValidatorIndex(
+        address validator
+    ) external view returns (uint64) {
         if (!isCurrentEpochValidator(validator)) {
             revert ValidatorNotActive(validator);
         }
@@ -1005,7 +1047,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                     // check if stakeCreditAddress is valid
                     if (stakeCreditAddress == address(0)) {
                         // if stakeCreditAddress is invalid, send reward to system reward contract
-                        (bool success,) = SYSTEM_REWARD_ADDR.call{value: reward}("");
+                        (bool success,) = SYSTEM_REWARD_ADDR.call{ value: reward }("");
                         if (success) {
                             emit RewardDistributeFailed(validator, "INVALID_STAKECREDIT");
                         }
@@ -1014,14 +1056,14 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                         uint64 commissionRate = validatorInfos[validator].commission.rate;
 
                         // send reward - no need for try-catch, assume call always succeeds
-                        StakeCredit(payable(stakeCreditAddress)).distributeReward{value: reward}(commissionRate);
+                        StakeCredit(payable(stakeCreditAddress)).distributeReward{ value: reward }(commissionRate);
                         emit RewardsDistributed(validator, reward);
                     }
                 }
             }
         } else {
             // if no validators are eligible for rewards, send all rewards to system reward contract
-            (bool success,) = SYSTEM_REWARD_ADDR.call{value: totalIncoming}("");
+            (bool success,) = SYSTEM_REWARD_ADDR.call{ value: totalIncoming }("");
             if (success) {
                 emit RewardDistributeFailed(address(0), "NO_ELIGIBLE_VALIDATORS");
             }
@@ -1035,7 +1077,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @dev Get validator's current epoch voting power
      * Inherited from StakeReward._getValidatorCurrentEpochVotingPower()
      */
-    function _getValidatorCurrentEpochVotingPower(address validator) internal view returns (uint256) {
+    function _getValidatorCurrentEpochVotingPower(
+        address validator
+    ) internal view returns (uint256) {
         address stakeCreditAddress = validatorInfos[validator].stakeCreditAddress;
         if (stakeCreditAddress == address(0)) {
             return 0;
@@ -1048,7 +1092,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param moniker Validator name
      * @return Whether the name is valid
      */
-    function _checkMoniker(string memory moniker) internal pure returns (bool) {
+    function _checkMoniker(
+        string memory moniker
+    ) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 
         // 1. moniker length should be between 3 and 9
@@ -1082,7 +1128,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param moniker Validator name
      * @return Whether the name is already exists
      */
-    function isMonikerExists(string calldata moniker) external view returns (bool) {
+    function isMonikerExists(
+        string calldata moniker
+    ) external view returns (bool) {
         bytes32 monikerHash = keccak256(abi.encodePacked(moniker));
         return _monikerSet[monikerHash];
     }
@@ -1092,17 +1140,17 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
      * @param moniker Validator name
      * @return Whether the name is valid
      */
-    function checkMonikerFormat(string calldata moniker) external pure returns (bool) {
+    function checkMonikerFormat(
+        string calldata moniker
+    ) external pure returns (bool) {
         return _checkMoniker(moniker);
     }
 
     /// @inheritdoc IValidatorManager
-    function updateOperator(address validator, address newOperator)
-        external
-        validatorExists(validator)
-        onlyValidatorSelf(validator)
-        validAddress(newOperator)
-    {
+    function updateOperator(
+        address validator,
+        address newOperator
+    ) external validatorExists(validator) onlyValidatorSelf(validator) validAddress(newOperator) {
         // check if new operator is already used by another validator
         if (operatorToValidator[newOperator] != address(0)) {
             revert AddressAlreadyInUse(newOperator, operatorToValidator[newOperator]);
@@ -1126,7 +1174,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function getOperator(address validator) external view validatorExists(validator) returns (address) {
+    function getOperator(
+        address validator
+    ) external view validatorExists(validator) returns (address) {
         return validatorInfos[validator].operator;
     }
 

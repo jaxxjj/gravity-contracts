@@ -16,10 +16,11 @@ contract Block is System, IBlock, Initializable {
     }
 
     /// @inheritdoc IBlock
-    function blockPrologue(address proposer, uint64[] calldata failedProposerIndices, uint256 timestampMicros)
-        external
-        onlySystemCaller
-    {
+    function blockPrologue(
+        address proposer,
+        uint64[] calldata failedProposerIndices,
+        uint256 timestampMicros
+    ) external onlySystemCaller {
         // 1. Validate proposer
         if (proposer != SYSTEM_CALLER && !IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(proposer)) {
             revert InvalidProposer(proposer);

@@ -105,7 +105,9 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 移除OIDC提供者
      */
-    function removeOIDCProvider(string calldata name) external;
+    function removeOIDCProvider(
+        string calldata name
+    ) external;
 
     /**
      * @dev 获取所有活跃的OIDC提供者
@@ -115,22 +117,30 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 更新观察到的JWKs（仅由共识层调用）
      */
-    function upsertObservedJWKs(ProviderJWKs[] calldata providerJWKsArray) external;
+    function upsertObservedJWKs(
+        ProviderJWKs[] calldata providerJWKsArray
+    ) external;
 
     /**
      * @dev 从观察到的JWKs中移除发行者
      */
-    function removeIssuerFromObservedJWKs(string calldata issuer) external;
+    function removeIssuerFromObservedJWKs(
+        string calldata issuer
+    ) external;
 
     /**
      * @dev 设置补丁
      */
-    function setPatches(Patch[] calldata newPatches) external;
+    function setPatches(
+        Patch[] calldata newPatches
+    ) external;
 
     /**
      * @dev 添加单个补丁
      */
-    function addPatch(Patch calldata patch) external;
+    function addPatch(
+        Patch calldata patch
+    ) external;
 
     /**
      * @dev 更新联邦JWK集合（dApp调用）
@@ -146,7 +156,9 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 应用补丁到联邦JWKs
      */
-    function patchFederatedJWKs(Patch[] calldata patchArray) external;
+    function patchFederatedJWKs(
+        Patch[] calldata patchArray
+    ) external;
 
     /**
      * @dev 获取补丁后的JWK
@@ -156,18 +168,19 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 尝试获取补丁后的JWK（不会revert）
      */
-    function tryGetPatchedJWK(string calldata issuer, bytes calldata jwkId)
-        external
-        view
-        returns (bool found, JWK memory jwk);
+    function tryGetPatchedJWK(
+        string calldata issuer,
+        bytes calldata jwkId
+    ) external view returns (bool found, JWK memory jwk);
 
     /**
      * @dev 获取联邦JWK
      */
-    function getFederatedJWK(address dapp, string calldata issuer, bytes calldata jwkId)
-        external
-        view
-        returns (JWK memory);
+    function getFederatedJWK(
+        address dapp,
+        string calldata issuer,
+        bytes calldata jwkId
+    ) external view returns (JWK memory);
 
     /**
      * @dev 获取观察到的JWKs
@@ -182,7 +195,9 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 获取联邦JWKs
      */
-    function getFederatedJWKs(address dapp) external view returns (AllProvidersJWKs memory);
+    function getFederatedJWKs(
+        address dapp
+    ) external view returns (AllProvidersJWKs memory);
 
     /**
      * @dev 获取所有补丁
@@ -209,9 +224,10 @@ interface IJWKManager is IParamSubscriber {
     /**
      * @dev 获取提供者信息
      */
-    function supportedProviders(uint256 index)
-        external
-        view
-        returns (string memory name, string memory configUrl, bool active);
-    function providerIndex(string calldata name) external view returns (uint256);
+    function supportedProviders(
+        uint256 index
+    ) external view returns (string memory name, string memory configUrl, bool active);
+    function providerIndex(
+        string calldata name
+    ) external view returns (uint256);
 }

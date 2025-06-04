@@ -11,7 +11,9 @@ contract EpochManagerMock {
         canTriggerEpochTransitionFlag = true; // Default to true for testing
     }
 
-    function setCanTriggerEpochTransition(bool canTrigger) external {
+    function setCanTriggerEpochTransition(
+        bool canTrigger
+    ) external {
         canTriggerEpochTransitionFlag = canTrigger;
     }
 

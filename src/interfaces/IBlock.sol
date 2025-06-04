@@ -36,6 +36,9 @@ interface IBlock {
      * @param failedProposerIndices List of failed proposer indices
      * @param timestampMicros Current block timestamp in microseconds
      */
-    function blockPrologue(address proposer, uint64[] calldata failedProposerIndices, uint256 timestampMicros)
-        external;
+    function blockPrologue(
+        address proposer,
+        uint64[] calldata failedProposerIndices,
+        uint256 timestampMicros
+    ) external;
 }

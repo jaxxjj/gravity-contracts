@@ -7,9 +7,11 @@ contract StakeCreditMock is IStakeCredit {
     uint256 private _totalPooledG;
 
     // Allow receiving ETH for fee payments
-    receive() external payable {}
+    receive() external payable { }
 
-    function setTotalPooledG(uint256 amount) external {
+    function setTotalPooledG(
+        uint256 amount
+    ) external {
         _totalPooledG = amount;
     }
 
@@ -24,7 +26,9 @@ contract StakeCreditMock is IStakeCredit {
         revert("StakeCreditMock: not implemented");
     }
 
-    function delegate(address) external payable returns (uint256) {
+    function delegate(
+        address
+    ) external payable returns (uint256) {
         revert("StakeCreditMock: not implemented");
     }
 
@@ -40,7 +44,9 @@ contract StakeCreditMock is IStakeCredit {
         revert("StakeCreditMock: not implemented");
     }
 
-    function distributeReward(uint64) external payable {
+    function distributeReward(
+        uint64
+    ) external payable {
         revert("StakeCreditMock: not implemented");
     }
 
@@ -48,23 +54,33 @@ contract StakeCreditMock is IStakeCredit {
         revert("StakeCreditMock: not implemented");
     }
 
-    function updateBeneficiary(address) external pure {
+    function updateBeneficiary(
+        address
+    ) external pure {
         revert("StakeCreditMock: not implemented");
     }
 
-    function claim(address payable) external pure returns (uint256) {
+    function claim(
+        address payable
+    ) external pure returns (uint256) {
         revert("StakeCreditMock: not implemented");
     }
 
-    function getClaimableAmount(address) external pure returns (uint256) {
+    function getClaimableAmount(
+        address
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function getPendingUnlockAmount(address) external pure returns (uint256) {
+    function getPendingUnlockAmount(
+        address
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function processUserUnlocks(address) external pure {
+    function processUserUnlocks(
+        address
+    ) external pure {
         revert("StakeCreditMock: not implemented");
     }
 
@@ -92,11 +108,15 @@ contract StakeCreditMock is IStakeCredit {
         return address(0);
     }
 
-    function rewardRecord(uint256) external pure returns (uint256) {
+    function rewardRecord(
+        uint256
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function totalPooledGRecord(uint256) external pure returns (uint256) {
+    function totalPooledGRecord(
+        uint256
+    ) external pure returns (uint256) {
         return 0;
     }
 
@@ -104,19 +124,27 @@ contract StakeCreditMock is IStakeCredit {
         return (false, 0);
     }
 
-    function getPooledGByShares(uint256) external pure returns (uint256) {
+    function getPooledGByShares(
+        uint256
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function getPooledGByDelegator(address) external pure returns (uint256) {
+    function getPooledGByDelegator(
+        address
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function getSharesByDelegator(address) external pure returns (uint256) {
+    function getSharesByDelegator(
+        address
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function getSharesByPooledG(uint256) external pure returns (uint256) {
+    function getSharesByPooledG(
+        uint256
+    ) external pure returns (uint256) {
         return 0;
     }
 
@@ -144,7 +172,9 @@ contract StakeCreditMock is IStakeCredit {
         return (0, 0, 0, 0, _totalPooledG, 0, 0, false);
     }
 
-    function balanceOf(address) external pure returns (uint256) {
+    function balanceOf(
+        address
+    ) external pure returns (uint256) {
         return 0;
     }
 

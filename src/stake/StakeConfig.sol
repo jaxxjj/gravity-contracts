@@ -72,11 +72,10 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     }
 
     /// @inheritdoc IStakeConfig
-    function updateParam(string calldata key, bytes calldata value)
-        external
-        override(IStakeConfig, IParamSubscriber)
-        onlyGov
-    {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external override(IStakeConfig, IParamSubscriber) onlyGov {
         if (Strings.equal(key, "minValidatorStake")) {
             uint256 newValue = abi.decode(value, (uint256));
             if (newValue == 0) revert StakeConfig__StakeLimitsMustBePositive();
@@ -223,17 +222,23 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     }
 
     /// @inheritdoc IStakeConfig
-    function isValidStakeAmount(uint256 amount) external view returns (bool) {
+    function isValidStakeAmount(
+        uint256 amount
+    ) external view returns (bool) {
         return amount >= minValidatorStake && amount <= maximumStake;
     }
 
     /// @inheritdoc IStakeConfig
-    function isValidDelegationAmount(uint256 amount) external view returns (bool) {
+    function isValidDelegationAmount(
+        uint256 amount
+    ) external view returns (bool) {
         return amount >= minDelegationStake;
     }
 
     /// @inheritdoc IStakeConfig
-    function isValidCommissionRate(uint256 rate) external view returns (bool) {
+    function isValidCommissionRate(
+        uint256 rate
+    ) external view returns (bool) {
         return rate <= maxCommissionRate;
     }
 

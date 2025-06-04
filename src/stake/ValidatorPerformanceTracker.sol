@@ -26,7 +26,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     /// Initialization flag
     bool private initialized;
 
-    modifier validValidatorIndex(uint256 index) {
+    modifier validValidatorIndex(
+        uint256 index
+    ) {
         if (index >= currentValidators.length) {
             revert InvalidValidatorIndex(index, currentValidators.length);
         }
@@ -34,7 +36,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function initialize(address[] calldata initialValidators) external onlyGenesis {
+    function initialize(
+        address[] calldata initialValidators
+    ) external onlyGenesis {
         if (initialized) revert AlreadyInitialized();
 
         initialized = true;
@@ -45,10 +49,10 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function updatePerformanceStatistics(uint64 proposerIndex, uint64[] calldata failedProposerIndices)
-        external
-        onlyBlock
-    {
+    function updatePerformanceStatistics(
+        uint64 proposerIndex,
+        uint64[] calldata failedProposerIndices
+    ) external onlyBlock {
         // Get current epoch directly from EpochManager
         uint256 epoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 
@@ -112,22 +116,17 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function getCurrentEpochProposalCounts(uint256 validatorIdx)
-        external
-        view
-        validValidatorIndex(validatorIdx)
-        returns (uint64 successful, uint64 failed)
-    {
+    function getCurrentEpochProposalCounts(
+        uint256 validatorIdx
+    ) external view validValidatorIndex(validatorIdx) returns (uint64 successful, uint64 failed) {
         IndividualValidatorPerformance memory perf = currentValidators[validatorIdx];
         return (perf.successfulProposals, perf.failedProposals);
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function getValidatorPerformance(address validator)
-        external
-        view
-        returns (uint64 successful, uint64 failed, uint256 index, bool exists)
-    {
+    function getValidatorPerformance(
+        address validator
+    ) external view returns (uint64 successful, uint64 failed, uint256 index, bool exists) {
         if (!isActiveValidator[validator]) {
             return (0, 0, 0, false);
         }
@@ -138,11 +137,10 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function getHistoricalPerformance(uint256 epoch, uint256 validatorIdx)
-        external
-        view
-        returns (uint64 successful, uint64 failed)
-    {
+    function getHistoricalPerformance(
+        uint256 epoch,
+        uint256 validatorIdx
+    ) external view returns (uint64 successful, uint64 failed) {
         uint256 currentEpoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
         require(epoch <= currentEpoch, "Future epoch not accessible");
 
@@ -170,7 +168,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function isValidator(address validator) external view returns (bool) {
+    function isValidator(
+        address validator
+    ) external view returns (bool) {
         return isActiveValidator[validator];
     }
 
@@ -191,7 +191,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function getValidatorSuccessRate(address validator) external view returns (uint256 successRate) {
+    function getValidatorSuccessRate(
+        address validator
+    ) external view returns (uint256 successRate) {
         if (!isActiveValidator[validator]) {
             return 0;
         }
@@ -208,7 +210,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
     }
 
     /// @inheritdoc IValidatorPerformanceTracker
-    function getEpochSummary(uint256 epoch)
+    function getEpochSummary(
+        uint256 epoch
+    )
         external
         view
         returns (uint256 totalValidators, uint256 totalSuccessful, uint256 totalFailed, uint256 averageSuccessRate)
@@ -245,7 +249,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @dev Initialize validator set
      * @param validators Initial validator addresses
      */
-    function _initializeValidatorSet(address[] calldata validators) internal {
+    function _initializeValidatorSet(
+        address[] calldata validators
+    ) internal {
         if (validators.length == 0) revert EmptyActiveValidatorSet();
 
         // Check for duplicate validators
@@ -264,7 +270,9 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @dev Save current epoch performance data to historical records
      * @param epoch Current epoch number
      */
-    function _finalizeCurrentEpochPerformance(uint256 epoch) internal {
+    function _finalizeCurrentEpochPerformance(
+        uint256 epoch
+    ) internal {
         if (currentValidators.length > 0) {
             uint256 totalSuccessful = 0;
             uint256 totalFailed = 0;
@@ -332,7 +340,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
             isActiveValidator[validators[i]] = true;
 
             // Initialize performance data
-            currentValidators.push(IndividualValidatorPerformance({successfulProposals: 0, failedProposals: 0}));
+            currentValidators.push(IndividualValidatorPerformance({ successfulProposals: 0, failedProposals: 0 }));
         }
 
         emit ActiveValidatorSetUpdated(epoch, validators);

@@ -118,7 +118,7 @@ contract DelegationTest is Test, TestConstants {
 
         // Act
         vm.prank(delegator1);
-        delegation.delegate{value: delegationAmount}(validator1);
+        delegation.delegate{ value: delegationAmount }(validator1);
 
         // Assert - Check that the delegate call was made with correct parameters
         // The actual verification is done through mock calls
@@ -135,7 +135,7 @@ contract DelegationTest is Test, TestConstants {
         vm.expectRevert(
             abi.encodeWithSelector(IDelegation.Delegation__ValidatorNotRegistered.selector, nonExistentValidator)
         );
-        delegation.delegate{value: delegationAmount}(nonExistentValidator);
+        delegation.delegate{ value: delegationAmount }(nonExistentValidator);
     }
 
     function test_delegate_shouldRevertIfAmountTooSmall() public {
@@ -145,7 +145,7 @@ contract DelegationTest is Test, TestConstants {
         // Act & Assert
         vm.prank(delegator1);
         vm.expectRevert(IDelegation.Delegation__LessThanMinDelegationChange.selector);
-        delegation.delegate{value: smallAmount}(validator1);
+        delegation.delegate{ value: smallAmount }(validator1);
     }
 
     function test_delegate_shouldEmitDelegatedEvent() public {
@@ -163,7 +163,7 @@ contract DelegationTest is Test, TestConstants {
         vm.prank(delegator1);
         vm.expectEmit(true, true, true, true);
         emit IDelegation.Delegated(validator1, delegator1, expectedShares, delegationAmount);
-        delegation.delegate{value: delegationAmount}(validator1);
+        delegation.delegate{ value: delegationAmount }(validator1);
     }
 
     // ============ UNDELEGATE TESTS ============
@@ -520,7 +520,7 @@ contract DelegationTest is Test, TestConstants {
         // Act & Assert
         vm.prank(delegator1);
         vm.expectRevert();
-        delegation.delegate{value: 1 ether}(validator1);
+        delegation.delegate{ value: 1 ether }(validator1);
     }
 
     function test_undelegate_shouldRevertWhenPaused() public {
@@ -547,7 +547,9 @@ contract DelegationTest is Test, TestConstants {
 
     // ============ FUZZ TESTS ============
 
-    function testFuzz_delegate_validAmounts(uint256 amount) public {
+    function testFuzz_delegate_validAmounts(
+        uint256 amount
+    ) public {
         // Arrange
         vm.assume(amount >= MIN_DELEGATION_CHANGE && amount <= 100 ether);
 
@@ -562,13 +564,15 @@ contract DelegationTest is Test, TestConstants {
 
         // Act
         vm.prank(delegator1);
-        delegation.delegate{value: amount}(validator1);
+        delegation.delegate{ value: amount }(validator1);
 
         // Assert - Should not revert
         assertTrue(true);
     }
 
-    function testFuzz_redelegate_validShares(uint256 shares) public {
+    function testFuzz_redelegate_validShares(
+        uint256 shares
+    ) public {
         // Arrange
         vm.assume(shares > 0 && shares <= 1e18);
 

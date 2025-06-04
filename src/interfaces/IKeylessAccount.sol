@@ -118,7 +118,9 @@ interface IKeylessAccount is IParamSubscriber {
     /**
      * @dev 获取账户信息
      */
-    function getAccountInfo(address account) external view returns (KeylessAccountInfo memory);
+    function getAccountInfo(
+        address account
+    ) external view returns (KeylessAccountInfo memory);
 
     /**
      * @dev 获取当前配置

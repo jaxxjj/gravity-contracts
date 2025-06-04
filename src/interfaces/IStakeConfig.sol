@@ -186,21 +186,27 @@ interface IStakeConfig {
      * @param amount The amount to check
      * @return True if valid, false otherwise
      */
-    function isValidStakeAmount(uint256 amount) external view returns (bool);
+    function isValidStakeAmount(
+        uint256 amount
+    ) external view returns (bool);
 
     /**
      * @dev Checks if a delegation amount is valid
      * @param amount The amount to check
      * @return True if valid, false otherwise
      */
-    function isValidDelegationAmount(uint256 amount) external view returns (bool);
+    function isValidDelegationAmount(
+        uint256 amount
+    ) external view returns (bool);
 
     /**
      * @dev Checks if a commission rate is valid
      * @param rate The rate to check
      * @return True if valid, false otherwise
      */
-    function isValidCommissionRate(uint256 rate) external view returns (bool);
+    function isValidCommissionRate(
+        uint256 rate
+    ) external view returns (bool);
 
     /**
      * @dev Checks if a commission rate change is valid

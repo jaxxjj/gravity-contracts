@@ -68,11 +68,11 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function initialize(address _validator, string memory _moniker, address _beneficiary)
-        external
-        payable
-        initializer
-    {
+    function initialize(
+        address _validator,
+        string memory _moniker,
+        address _beneficiary
+    ) external payable initializer {
         // Initialize ERC20 base
         _initializeERC20(_moniker);
 
@@ -94,7 +94,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev Initializes ERC20 component
      */
-    function _initializeERC20(string memory _moniker) private {
+    function _initializeERC20(
+        string memory _moniker
+    ) private {
         string memory name_ = string.concat("Stake ", _moniker, " Credit");
         string memory symbol_ = string.concat("st", _moniker);
         __ERC20_init(name_, symbol_);
@@ -114,14 +116,18 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev Initializes initial stake
      */
-    function _bootstrapInitialStake(uint256 _initialAmount) private {
+    function _bootstrapInitialStake(
+        uint256 _initialAmount
+    ) private {
         _bootstrapInitialHolder(_initialAmount);
     }
 
     /**
      * @dev Bootstraps initial holder
      */
-    function _bootstrapInitialHolder(uint256 initialAmount) private {
+    function _bootstrapInitialHolder(
+        uint256 initialAmount
+    ) private {
         uint256 toLock = IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
         if (initialAmount <= toLock || validator == address(0)) {
             revert StakeCredit__WrongInitContext();
@@ -140,7 +146,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function delegate(address delegator) external payable onlyDelegationOrValidatorManager returns (uint256 shares) {
+    function delegate(
+        address delegator
+    ) external payable onlyDelegationOrValidatorManager returns (uint256 shares) {
         if (msg.value == 0) revert ZeroAmount();
 
         // Calculate shares based on current pool value
@@ -166,11 +174,10 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function unlock(address delegator, uint256 shares)
-        external
-        onlyDelegationOrValidatorManager
-        returns (uint256 gAmount)
-    {
+    function unlock(
+        address delegator,
+        uint256 shares
+    ) external onlyDelegationOrValidatorManager returns (uint256 gAmount) {
         // Basic validation
         if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
@@ -202,7 +209,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // Check for hash collision (should not happen in normal cases)
         if (_unlockRequests[requestHash].amount != 0) revert StakeCredit__RequestExists();
 
-        _unlockRequests[requestHash] = UnlockRequest({amount: gAmount, unlockTime: unlockTime});
+        _unlockRequests[requestHash] = UnlockRequest({ amount: gAmount, unlockTime: unlockTime });
 
         _unlockRequestsQueue[delegator].pushBack(requestHash);
 
@@ -211,12 +218,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function claim(address payable delegator)
-        external
-        onlyDelegationOrValidatorManager
-        nonReentrant
-        returns (uint256 totalClaimed)
-    {
+    function claim(
+        address payable delegator
+    ) external onlyDelegationOrValidatorManager nonReentrant returns (uint256 totalClaimed) {
         DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
 
         if (queue.length() == 0) revert StakeCredit__NoUnlockRequest();
@@ -250,7 +254,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // Transfer all claimed amount at once
         if (totalClaimed == 0) revert StakeCredit__NoClaimableRequest();
 
-        (bool success,) = delegator.call{value: totalClaimed}("");
+        (bool success,) = delegator.call{ value: totalClaimed }("");
         if (!success) revert TransferFailed();
 
         emit StakeWithdrawn(delegator, totalClaimed);
@@ -258,11 +262,10 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function unbond(address delegator, uint256 shares)
-        external
-        onlyDelegationOrValidatorManager
-        returns (uint256 gAmount)
-    {
+    function unbond(
+        address delegator,
+        uint256 shares
+    ) external onlyDelegationOrValidatorManager returns (uint256 gAmount) {
         if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
@@ -287,18 +290,17 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         }
 
         // Transfer directly to caller (Delegation contract)
-        (bool success,) = msg.sender.call{value: gAmount}("");
+        (bool success,) = msg.sender.call{ value: gAmount }("");
         if (!success) revert TransferFailed();
 
         return gAmount;
     }
 
     /// @inheritdoc IStakeCredit
-    function reactivateStake(address delegator, uint256 shares)
-        external
-        onlyDelegationOrValidatorManager
-        returns (uint256 gAmount)
-    {
+    function reactivateStake(
+        address delegator,
+        uint256 shares
+    ) external onlyDelegationOrValidatorManager returns (uint256 gAmount) {
         if (shares == 0) revert ZeroShares();
         if (pendingInactive == 0) revert NoWithdrawableAmount();
 
@@ -346,7 +348,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function distributeReward(uint64 commissionRate) external payable onlyValidatorManager {
+    function distributeReward(
+        uint64 commissionRate
+    ) external payable onlyValidatorManager {
         uint256 totalReward = msg.value;
 
         // Calculate accumulated rewards (growth based on principal)
@@ -417,14 +421,18 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function getPooledGByShares(uint256 shares) public view returns (uint256) {
+    function getPooledGByShares(
+        uint256 shares
+    ) public view returns (uint256) {
         uint256 totalPooled = getTotalPooledG();
         if (totalSupply() == 0) revert ZeroTotalShares();
         return (shares * totalPooled) / totalSupply();
     }
 
     /// @inheritdoc IStakeCredit
-    function getSharesByPooledG(uint256 gAmount) public view returns (uint256) {
+    function getSharesByPooledG(
+        uint256 gAmount
+    ) public view returns (uint256) {
         uint256 totalPooled = getTotalPooledG();
         if (totalPooled == 0) revert ZeroTotalPooledTokens();
         return (gAmount * totalSupply()) / totalPooled;
@@ -451,14 +459,18 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function getPooledGByDelegator(address delegator) public view returns (uint256) {
+    function getPooledGByDelegator(
+        address delegator
+    ) public view returns (uint256) {
         return getPooledGByShares(balanceOf(delegator));
     }
 
     /**
      * @dev Get user's claimable amount
      */
-    function getClaimableAmount(address delegator) external view returns (uint256 claimable) {
+    function getClaimableAmount(
+        address delegator
+    ) external view returns (uint256 claimable) {
         DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
 
         if (queue.length() == 0) return 0;
@@ -492,7 +504,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev Get user's pending unlock amount
      */
-    function getPendingUnlockAmount(address delegator) external view returns (uint256) {
+    function getPendingUnlockAmount(
+        address delegator
+    ) external view returns (uint256) {
         return _unlockRequestsQueue[delegator].length();
     }
 
@@ -501,7 +515,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
      * In BSC-style implementation, this checks and processes unlock requests
      * that have completed their unbonding period but haven't been claimed yet
      */
-    function processUserUnlocks(address user) external {
+    function processUserUnlocks(
+        address user
+    ) external {
         DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[user];
         uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
 
@@ -592,7 +608,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /// @inheritdoc IStakeCredit
-    function updateBeneficiary(address newBeneficiary) external {
+    function updateBeneficiary(
+        address newBeneficiary
+    ) external {
         // Only validator can call
         if (msg.sender != validator) {
             revert StakeCredit__UnauthorizedCaller();

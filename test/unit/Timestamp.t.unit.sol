@@ -215,7 +215,9 @@ contract TimestampTest is Test, TestConstants {
 
     // ============ FUZZ TESTS ============
 
-    function testFuzz_updateGlobalTime_normalBlock_validTime(uint64 newTime) public {
+    function testFuzz_updateGlobalTime_normalBlock_validTime(
+        uint64 newTime
+    ) public {
         // Arrange
         uint64 currentTime = timestamp.microseconds();
         vm.assume(newTime >= currentTime);
@@ -229,7 +231,9 @@ contract TimestampTest is Test, TestConstants {
         assertEq(timestamp.microseconds(), newTime);
     }
 
-    function testFuzz_updateGlobalTime_normalBlock_invalidTime(uint64 newTime) public {
+    function testFuzz_updateGlobalTime_normalBlock_invalidTime(
+        uint64 newTime
+    ) public {
         // Arrange
         uint64 currentTime = timestamp.microseconds();
         vm.assume(newTime < currentTime);
@@ -240,7 +244,9 @@ contract TimestampTest is Test, TestConstants {
         timestamp.updateGlobalTime(TEST_PROPOSER, newTime);
     }
 
-    function testFuzz_isGreaterThanOrEqualCurrentTimestamp(uint64 testTime) public view {
+    function testFuzz_isGreaterThanOrEqualCurrentTimestamp(
+        uint64 testTime
+    ) public view {
         // Arrange
         uint64 currentTime = timestamp.microseconds();
 
@@ -255,7 +261,9 @@ contract TimestampTest is Test, TestConstants {
         }
     }
 
-    function testFuzz_timeConversion_microsToSeconds(uint64 microTime) public {
+    function testFuzz_timeConversion_microsToSeconds(
+        uint64 microTime
+    ) public {
         // Arrange
         vm.assume(microTime >= timestamp.microseconds()); // Must be valid time
         vm.prank(BLOCK_ADDR);

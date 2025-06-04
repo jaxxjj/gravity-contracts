@@ -37,11 +37,15 @@ contract ValidatorManagerMock {
         validatorIndexMap[validator] = index;
     }
 
-    function isCurrentEpochValidator(address validator) external view returns (bool) {
+    function isCurrentEpochValidator(
+        address validator
+    ) external view returns (bool) {
         return isCurrentEpochValidatorMap[validator];
     }
 
-    function getValidatorIndex(address validator) external view returns (uint64) {
+    function getValidatorIndex(
+        address validator
+    ) external view returns (uint64) {
         require(isCurrentEpochValidatorMap[validator], "ValidatorNotActive");
         return validatorIndexMap[validator];
     }
@@ -50,7 +54,9 @@ contract ValidatorManagerMock {
         validatorExistsMap[validator] = exists;
     }
 
-    function isValidatorExists(address validator) external view returns (bool) {
+    function isValidatorExists(
+        address validator
+    ) external view returns (bool) {
         return validatorExistsMap[validator];
     }
 
@@ -58,7 +64,9 @@ contract ValidatorManagerMock {
         validatorStakeCreditMap[validator] = stakeCredit;
     }
 
-    function getValidatorStakeCredit(address validator) external view returns (address) {
+    function getValidatorStakeCredit(
+        address validator
+    ) external view returns (address) {
         return validatorStakeCreditMap[validator];
     }
 
@@ -66,7 +74,9 @@ contract ValidatorManagerMock {
         validatorStatusMap[validator] = status;
     }
 
-    function getValidatorStatus(address validator) external view returns (IValidatorManager.ValidatorStatus) {
+    function getValidatorStatus(
+        address validator
+    ) external view returns (IValidatorManager.ValidatorStatus) {
         return validatorStatusMap[validator];
     }
 
@@ -74,15 +84,21 @@ contract ValidatorManagerMock {
         validatorStakeMap[validator] = stake;
     }
 
-    function getValidatorStake(address validator) external view returns (uint256) {
+    function getValidatorStake(
+        address validator
+    ) external view returns (uint256) {
         return validatorStakeMap[validator];
     }
 
-    function checkVotingPowerIncrease(uint256 /* amount */ ) external pure {
+    function checkVotingPowerIncrease(
+        uint256 /* amount */
+    ) external pure {
         // Do nothing - mock implementation
     }
 
-    function checkValidatorMinStake(address /* validator */ ) external pure {
+    function checkValidatorMinStake(
+        address /* validator */
+    ) external pure {
         // Do nothing - mock implementation
     }
 
@@ -111,7 +127,9 @@ contract ValidatorManagerMock {
         isCurrentEpochValidatorMap[validator] = (status == IValidatorManager.ValidatorStatus.ACTIVE);
     }
 
-    function removeValidator(address validator) external {
+    function removeValidator(
+        address validator
+    ) external {
         validatorExistsMap[validator] = false;
         validatorStakeCreditMap[validator] = address(0);
         validatorStatusMap[validator] = IValidatorManager.ValidatorStatus.INACTIVE;

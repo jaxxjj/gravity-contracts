@@ -7,7 +7,9 @@ contract GovTokenMock {
     mapping(address => address) private _delegates;
     mapping(address => uint256) private _votingPower;
 
-    function setTotalSupply(uint256 _newTotalSupply) external {
+    function setTotalSupply(
+        uint256 _newTotalSupply
+    ) external {
         _totalSupply = _newTotalSupply;
     }
 
@@ -15,7 +17,9 @@ contract GovTokenMock {
         return _totalSupply;
     }
 
-    function balanceOf(address account) external view returns (uint256) {
+    function balanceOf(
+        address account
+    ) external view returns (uint256) {
         return _balances[account];
     }
 
@@ -23,7 +27,9 @@ contract GovTokenMock {
         _balances[account] = balance;
     }
 
-    function getVotes(address account) external view returns (uint256) {
+    function getVotes(
+        address account
+    ) external view returns (uint256) {
         return _votingPower[account];
     }
 
@@ -35,15 +41,21 @@ contract GovTokenMock {
         return _votingPower[account];
     }
 
-    function getPastTotalSupply(uint256 /* timepoint */ ) external view returns (uint256) {
+    function getPastTotalSupply(
+        uint256 /* timepoint */
+    ) external view returns (uint256) {
         return _totalSupply;
     }
 
-    function delegates(address account) external view returns (address) {
+    function delegates(
+        address account
+    ) external view returns (address) {
         return _delegates[account];
     }
 
-    function delegate(address delegatee) external {
+    function delegate(
+        address delegatee
+    ) external {
         _delegates[msg.sender] = delegatee;
     }
 

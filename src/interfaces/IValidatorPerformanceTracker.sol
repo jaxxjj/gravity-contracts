@@ -44,7 +44,9 @@ interface IValidatorPerformanceTracker {
      * @dev Initialize the contract with initial validators
      * @param initialValidators List of initial validator addresses
      */
-    function initialize(address[] calldata initialValidators) external;
+    function initialize(
+        address[] calldata initialValidators
+    ) external;
 
     /**
      * @dev Update validator performance statistics
@@ -64,10 +66,9 @@ interface IValidatorPerformanceTracker {
      * @return successful Number of successful proposals
      * @return failed Number of failed proposals
      */
-    function getCurrentEpochProposalCounts(uint256 validatorIndex)
-        external
-        view
-        returns (uint64 successful, uint64 failed);
+    function getCurrentEpochProposalCounts(
+        uint256 validatorIndex
+    ) external view returns (uint64 successful, uint64 failed);
 
     /**
      * @dev Get validator performance by address
@@ -77,10 +78,9 @@ interface IValidatorPerformanceTracker {
      * @return index Validator index
      * @return exists Whether validator exists
      */
-    function getValidatorPerformance(address validator)
-        external
-        view
-        returns (uint64 successful, uint64 failed, uint256 index, bool exists);
+    function getValidatorPerformance(
+        address validator
+    ) external view returns (uint64 successful, uint64 failed, uint256 index, bool exists);
 
     /**
      * @dev Get historical epoch performance data
@@ -89,10 +89,10 @@ interface IValidatorPerformanceTracker {
      * @return successful Number of successful proposals
      * @return failed Number of failed proposals
      */
-    function getHistoricalPerformance(uint256 epoch, uint256 validatorIndex)
-        external
-        view
-        returns (uint64 successful, uint64 failed);
+    function getHistoricalPerformance(
+        uint256 epoch,
+        uint256 validatorIndex
+    ) external view returns (uint64 successful, uint64 failed);
 
     /**
      * @dev Get all current validator addresses
@@ -111,7 +111,9 @@ interface IValidatorPerformanceTracker {
      * @param validator Validator address
      * @return Whether the address is an active validator
      */
-    function isValidator(address validator) external view returns (bool);
+    function isValidator(
+        address validator
+    ) external view returns (bool);
 
     /**
      * @dev Get complete performance data for current validators
@@ -128,7 +130,9 @@ interface IValidatorPerformanceTracker {
      * @param validator Validator address
      * @return successRate Success rate in basis points (10000 = 100%)
      */
-    function getValidatorSuccessRate(address validator) external view returns (uint256 successRate);
+    function getValidatorSuccessRate(
+        address validator
+    ) external view returns (uint256 successRate);
 
     /**
      * @dev Get epoch summary statistics
@@ -138,7 +142,9 @@ interface IValidatorPerformanceTracker {
      * @return totalFailed Total failed proposals
      * @return averageSuccessRate Average success rate in basis points
      */
-    function getEpochSummary(uint256 epoch)
+    function getEpochSummary(
+        uint256 epoch
+    )
         external
         view
         returns (uint256 totalValidators, uint256 totalSuccessful, uint256 totalFailed, uint256 averageSuccessRate);
@@ -148,19 +154,25 @@ interface IValidatorPerformanceTracker {
      * @param index Validator index
      * @return Validator address
      */
-    function activeValidators(uint256 index) external view returns (address);
+    function activeValidators(
+        uint256 index
+    ) external view returns (address);
 
     /**
      * @dev Get validator index by address
      * @param validator Validator address
      * @return Validator index
      */
-    function validatorIndex(address validator) external view returns (uint256);
+    function validatorIndex(
+        address validator
+    ) external view returns (uint256);
 
     /**
      * @dev Check if address is an active validator
      * @param validator Validator address
      * @return Whether the address is an active validator
      */
-    function isActiveValidator(address validator) external view returns (bool);
+    function isActiveValidator(
+        address validator
+    ) external view returns (bool);
 }

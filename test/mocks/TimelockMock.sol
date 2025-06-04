@@ -14,35 +14,49 @@ contract TimelockMock {
         return _minDelay;
     }
 
-    function setMinDelay(uint256 newDelay) external {
+    function setMinDelay(
+        uint256 newDelay
+    ) external {
         _minDelay = newDelay;
     }
 
-    function isOperation(bytes32 /* id */ ) external pure returns (bool) {
+    function isOperation(
+        bytes32 /* id */
+    ) external pure returns (bool) {
         return true;
     }
 
-    function isOperationPending(bytes32 /* id */ ) external pure returns (bool) {
+    function isOperationPending(
+        bytes32 /* id */
+    ) external pure returns (bool) {
         return true;
     }
 
-    function isOperationReady(bytes32 /* id */ ) external pure returns (bool) {
+    function isOperationReady(
+        bytes32 /* id */
+    ) external pure returns (bool) {
         return true;
     }
 
-    function isOperationDone(bytes32 /* id */ ) external pure returns (bool) {
+    function isOperationDone(
+        bytes32 /* id */
+    ) external pure returns (bool) {
         return false;
     }
 
-    function getTimestamp(bytes32 id) external view returns (uint256) {
+    function getTimestamp(
+        bytes32 id
+    ) external view returns (uint256) {
         return _operationTimestamps[id];
     }
 
-    function hashOperation(address target, uint256 value, bytes calldata data, bytes32 predecessor, bytes32 salt)
-        external
-        pure
-        returns (bytes32)
-    {
+    function hashOperation(
+        address target,
+        uint256 value,
+        bytes calldata data,
+        bytes32 predecessor,
+        bytes32 salt
+    ) external pure returns (bytes32) {
         return keccak256(abi.encode(target, value, data, predecessor, salt));
     }
 
@@ -98,11 +112,15 @@ contract TimelockMock {
         // Mock implementation - just return
     }
 
-    function cancel(bytes32 /* id */ ) external {
+    function cancel(
+        bytes32 /* id */
+    ) external {
         // Mock implementation - just return
     }
 
-    function updateDelay(uint256 newDelay) external {
+    function updateDelay(
+        uint256 newDelay
+    ) external {
         _minDelay = newDelay;
     }
 
@@ -111,7 +129,9 @@ contract TimelockMock {
         return true;
     }
 
-    function getRoleAdmin(bytes32 /* role */ ) external pure returns (bytes32) {
+    function getRoleAdmin(
+        bytes32 /* role */
+    ) external pure returns (bytes32) {
         return 0x00;
     }
 
