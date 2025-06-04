@@ -16,21 +16,21 @@ import "@src/governance/Timelock.sol";
 
 /**
  * @title Genesis
- * @dev 创世初始化合约
- * 负责在链启动时初始化所有核心组件和初始验证者集合
+ * @dev Genesis initialization contract
+ * Responsible for initializing all core components and initial validator set during chain startup
  */
 contract Genesis is System {
-    // 创世状态标志
+    // Genesis completion flag
     bool private genesisCompleted;
 
-    // 错误定义
+    // Error definitions
     error GenesisAlreadyCompleted();
     error InvalidInitialValidators();
 
     event GenesisCompleted(uint256 timestamp, uint256 validatorCount);
 
     /**
-     * @dev 创世初始化入口函数
+     * @dev Genesis initialization entry function
      */
     function initialize(
         address[] calldata validatorAddresses,
@@ -42,31 +42,31 @@ contract Genesis is System {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
         if (consensusAddresses.length == 0) revert InvalidInitialValidators();
 
-        // 1. 初始化质押模块
+        // 1. Initialize staking module
         _initializeStake(validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses);
 
-        // 2. 初始化周期模块
+        // 2. Initialize epoch module
         _initializeEpoch();
 
-        // 3. 初始化治理模块
+        // 3. Initialize governance module
         _initializeGovernance();
 
-        // 4. 初始化JWK模块
+        // 4. Initialize JWK module
         _initializeJWK();
 
-        // 5. 初始化Block合约
+        // 5. Initialize Block contract
         IBlock(BLOCK_ADDR).initialize();
 
         genesisCompleted = true;
 
-        // 触发第一个epoch
+        // Trigger first epoch
         IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
 
         emit GenesisCompleted(block.timestamp, consensusAddresses.length);
     }
 
     /**
-     * @dev 初始化质押模块
+     * @dev Initialize staking module
      */
     function _initializeStake(
         address[] calldata validatorAddresses,
@@ -75,53 +75,57 @@ contract Genesis is System {
         uint64[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) internal {
-        // 初始化StakeConfig
+        // Initialize StakeConfig
         IStakeConfig(STAKE_CONFIG_ADDR).initialize();
 
-        // 初始化ValidatorManager，同时传入初始验证者数据
+        // Initialize ValidatorManager with initial validator data
         IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(
-            validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses
+            validatorAddresses,
+            consensusAddresses,
+            feeAddresses,
+            votingPowers,
+            voteAddresses
         );
 
-        // 初始化ValidatorPerformanceTracker
+        // Initialize ValidatorPerformanceTracker
         IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(validatorAddresses);
     }
 
     /**
-     * @dev 初始化周期模块
+     * @dev Initialize epoch module
      */
     function _initializeEpoch() internal {
-        // 初始化EpochManager
+        // Initialize EpochManager
         IEpochManager(EPOCH_MANAGER_ADDR).initialize();
     }
 
     /**
-     * @dev 初始化治理模块
+     * @dev Initialize governance module
      */
     function _initializeGovernance() internal {
-        // 初始化GovToken
+        // Initialize GovToken
         IGovToken(GOV_TOKEN_ADDR).initialize();
 
-        // 初始化Timelock
+        // Initialize Timelock
         Timelock(payable(TIMELOCK_ADDR)).initialize();
 
-        // 初始化GravityGovernor
+        // Initialize GravityGovernor
         GravityGovernor(payable(GOVERNOR_ADDR)).initialize();
     }
 
     /**
-     * @dev 初始化JWK模块
+     * @dev Initialize JWK module
      */
     function _initializeJWK() internal {
-        // 初始化JWKManager
+        // Initialize JWKManager
         IJWKManager(JWK_MANAGER_ADDR).initialize();
 
-        // 初始化KeylessAccount
+        // Initialize KeylessAccount
         IKeylessAccount(KEYLESS_ACCOUNT_ADDR).initialize();
     }
 
     /**
-     * @dev 检查创世是否完成
+     * @dev Check if genesis is completed
      */
     function isGenesisCompleted() external view returns (bool) {
         return genesisCompleted;
