@@ -4,25 +4,25 @@ pragma solidity 0.8.30;
 library Bytes {
     function bytesToAddress(bytes memory _input, uint256 _offset) internal pure returns (address _output) {
         assembly {
-            _output := mload(add(_input, _offset))
+            _output := shr(96, mload(add(add(_input, 0x20), _offset)))
         }
     }
 
     function bytesToUint256(bytes memory _input, uint256 _offset) internal pure returns (uint256 _output) {
         assembly {
-            _output := mload(add(_input, _offset))
+            _output := mload(add(add(_input, 0x20), _offset))
         }
     }
 
     function bytesToUint64(bytes memory _input, uint256 _offset) internal pure returns (uint64 _output) {
         assembly {
-            _output := mload(add(_input, _offset))
+            _output := shr(192, mload(add(add(_input, 0x20), _offset)))
         }
     }
 
     function bytesToBytes32(bytes memory _input, uint256 _offset) internal pure returns (bytes32 _output) {
         assembly {
-            _output := mload(add(_input, _offset))
+            _output := mload(add(add(_input, 0x20), _offset))
         }
     }
 
