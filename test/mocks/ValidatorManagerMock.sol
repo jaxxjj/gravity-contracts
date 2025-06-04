@@ -78,11 +78,11 @@ contract ValidatorManagerMock {
         return validatorStakeMap[validator];
     }
 
-    function checkVotingPowerIncrease(uint256 /* amount */) external pure {
+    function checkVotingPowerIncrease(uint256 /* amount */ ) external pure {
         // Do nothing - mock implementation
     }
 
-    function checkValidatorMinStake(address /* validator */) external pure {
+    function checkValidatorMinStake(address /* validator */ ) external pure {
         // Do nothing - mock implementation
     }
 

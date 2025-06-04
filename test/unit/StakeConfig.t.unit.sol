@@ -108,9 +108,7 @@ contract StakeConfigTest is Test, TestConstants {
         vm.startPrank(GOV_HUB_ADDR);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IStakeConfig.StakeConfig__InvalidStakeRange.selector,
-                newValue,
-                stakeConfig.maximumStake()
+                IStakeConfig.StakeConfig__InvalidStakeRange.selector, newValue, stakeConfig.maximumStake()
             )
         );
         stakeConfig.updateParam("minValidatorStake", encodedValue);
@@ -139,9 +137,7 @@ contract StakeConfigTest is Test, TestConstants {
         vm.startPrank(GOV_HUB_ADDR);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IStakeConfig.StakeConfig__InvalidStakeRange.selector,
-                stakeConfig.minValidatorStake(),
-                newValue
+                IStakeConfig.StakeConfig__InvalidStakeRange.selector, stakeConfig.minValidatorStake(), newValue
             )
         );
         stakeConfig.updateParam("maximumStake", encodedValue);

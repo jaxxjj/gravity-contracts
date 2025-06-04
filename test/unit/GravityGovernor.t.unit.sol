@@ -101,9 +101,7 @@ contract GravityGovernorTest is Test, TestConstants {
     function test_propose_shouldStartProposeWhenThresholdMet() public {
         // Arrange - Mock the totalSupply call that Governor will make
         vm.mockCall(
-            GOV_TOKEN_ADDR,
-            abi.encodeWithSelector(IERC20.totalSupply.selector),
-            abi.encode(1_100_000_000 ether)
+            GOV_TOKEN_ADDR, abi.encodeWithSelector(IERC20.totalSupply.selector), abi.encode(1_100_000_000 ether)
         );
 
         // Mock getPastVotes for proposer to have sufficient voting power
@@ -149,9 +147,7 @@ contract GravityGovernorTest is Test, TestConstants {
     function test_propose_shouldRevertIfProposerHasActiveProposal() public {
         // Arrange - Mock the totalSupply call that Governor will make
         vm.mockCall(
-            GOV_TOKEN_ADDR,
-            abi.encodeWithSelector(IERC20.totalSupply.selector),
-            abi.encode(1_100_000_000 ether)
+            GOV_TOKEN_ADDR, abi.encodeWithSelector(IERC20.totalSupply.selector), abi.encode(1_100_000_000 ether)
         );
 
         // Mock getPastVotes for proposer to have sufficient voting power
@@ -285,9 +281,7 @@ contract GravityGovernorTest is Test, TestConstants {
 
         // Test quorumNumerator < 5
         vm.prank(GOV_HUB_ADDR);
-        vm.expectRevert(
-            abi.encodeWithSelector(System.InvalidValue.selector, "quorumNumerator", abi.encode(uint256(4)))
-        );
+        vm.expectRevert(abi.encodeWithSelector(System.InvalidValue.selector, "quorumNumerator", abi.encode(uint256(4))));
         governor.updateParam("quorumNumerator", abi.encode(uint256(4)));
     }
 

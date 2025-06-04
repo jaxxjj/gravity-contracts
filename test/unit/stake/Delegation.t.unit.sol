@@ -53,11 +53,7 @@ contract DelegationTest is Test, TestConstants {
 
         // Initialize mocks that have initialize function
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).initialize(
-            new address[](0),
-            new address[](0),
-            new address payable[](0),
-            new uint64[](0),
-            new bytes[](0)
+            new address[](0), new address[](0), new address payable[](0), new uint64[](0), new bytes[](0)
         );
         StakeConfigMock(STAKE_CONFIG_ADDR).initialize();
         // GovTokenMock doesn't have initialize method
@@ -68,12 +64,10 @@ contract DelegationTest is Test, TestConstants {
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStakeCredit(validator1, address(stakeCreditMock));
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStakeCredit(validator2, address(stakeCreditMock));
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator1,
-            IValidatorManager.ValidatorStatus.ACTIVE
+            validator1, IValidatorManager.ValidatorStatus.ACTIVE
         );
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator2,
-            IValidatorManager.ValidatorStatus.ACTIVE
+            validator2, IValidatorManager.ValidatorStatus.ACTIVE
         );
 
         // Setup stake config mocks
@@ -124,7 +118,7 @@ contract DelegationTest is Test, TestConstants {
 
         // Act
         vm.prank(delegator1);
-        delegation.delegate{ value: delegationAmount }(validator1);
+        delegation.delegate{value: delegationAmount}(validator1);
 
         // Assert - Check that the delegate call was made with correct parameters
         // The actual verification is done through mock calls
@@ -141,7 +135,7 @@ contract DelegationTest is Test, TestConstants {
         vm.expectRevert(
             abi.encodeWithSelector(IDelegation.Delegation__ValidatorNotRegistered.selector, nonExistentValidator)
         );
-        delegation.delegate{ value: delegationAmount }(nonExistentValidator);
+        delegation.delegate{value: delegationAmount}(nonExistentValidator);
     }
 
     function test_delegate_shouldRevertIfAmountTooSmall() public {
@@ -151,7 +145,7 @@ contract DelegationTest is Test, TestConstants {
         // Act & Assert
         vm.prank(delegator1);
         vm.expectRevert(IDelegation.Delegation__LessThanMinDelegationChange.selector);
-        delegation.delegate{ value: smallAmount }(validator1);
+        delegation.delegate{value: smallAmount}(validator1);
     }
 
     function test_delegate_shouldEmitDelegatedEvent() public {
@@ -169,7 +163,7 @@ contract DelegationTest is Test, TestConstants {
         vm.prank(delegator1);
         vm.expectEmit(true, true, true, true);
         emit IDelegation.Delegated(validator1, delegator1, expectedShares, delegationAmount);
-        delegation.delegate{ value: delegationAmount }(validator1);
+        delegation.delegate{value: delegationAmount}(validator1);
     }
 
     // ============ UNDELEGATE TESTS ============
@@ -254,9 +248,7 @@ contract DelegationTest is Test, TestConstants {
     function test_claim_shouldReturnZeroIfNothingToClaim() public {
         // Arrange
         vm.mockCall(
-            address(stakeCreditMock),
-            abi.encodeWithSelector(IStakeCredit.claim.selector, delegator1),
-            abi.encode(0)
+            address(stakeCreditMock), abi.encodeWithSelector(IStakeCredit.claim.selector, delegator1), abi.encode(0)
         );
 
         // Act
@@ -458,8 +450,7 @@ contract DelegationTest is Test, TestConstants {
         // Arrange
         // Use ValidatorManagerMock method to set validator2 status as INACTIVE on system address
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator2,
-            IValidatorManager.ValidatorStatus.INACTIVE
+            validator2, IValidatorManager.ValidatorStatus.INACTIVE
         );
 
         uint256 shares = 1000;
@@ -497,8 +488,7 @@ contract DelegationTest is Test, TestConstants {
         // Arrange
         // Use ValidatorManagerMock method to set validator2 status as INACTIVE on system address
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator2,
-            IValidatorManager.ValidatorStatus.INACTIVE
+            validator2, IValidatorManager.ValidatorStatus.INACTIVE
         );
 
         // Act & Assert
@@ -530,7 +520,7 @@ contract DelegationTest is Test, TestConstants {
         // Act & Assert
         vm.prank(delegator1);
         vm.expectRevert();
-        delegation.delegate{ value: 1 ether }(validator1);
+        delegation.delegate{value: 1 ether}(validator1);
     }
 
     function test_undelegate_shouldRevertWhenPaused() public {
@@ -572,7 +562,7 @@ contract DelegationTest is Test, TestConstants {
 
         // Act
         vm.prank(delegator1);
-        delegation.delegate{ value: amount }(validator1);
+        delegation.delegate{value: amount}(validator1);
 
         // Assert - Should not revert
         assertTrue(true);

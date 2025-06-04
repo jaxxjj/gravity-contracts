@@ -180,11 +180,8 @@ contract GovHubTest is Test, TestConstants {
     function test_notifyUpdates_nonContractTarget_shouldReturnErrorCode() public {
         // Arrange
         address nonContractTarget = address(0x1234);
-        GovHub.ParamChangePackage memory proposal = GovHub.ParamChangePackage({
-            key: TEST_KEY,
-            value: TEST_VALUE,
-            target: nonContractTarget
-        });
+        GovHub.ParamChangePackage memory proposal =
+            GovHub.ParamChangePackage({key: TEST_KEY, value: TEST_VALUE, target: nonContractTarget});
 
         // Act
         // We need to expose notifyUpdates for testing
@@ -200,8 +197,8 @@ contract GovHubTest is Test, TestConstants {
 
     function test_updateParam_largeKey_shouldSucceed() public {
         // Arrange
-        string
-            memory largeKey = "this_is_a_very_long_parameter_key_that_tests_the_limits_of_string_handling_in_solidity_contracts";
+        string memory largeKey =
+            "this_is_a_very_long_parameter_key_that_tests_the_limits_of_string_handling_in_solidity_contracts";
         address target = address(mockSubscriber);
 
         // Act

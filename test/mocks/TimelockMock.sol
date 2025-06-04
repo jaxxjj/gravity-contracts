@@ -18,19 +18,19 @@ contract TimelockMock {
         _minDelay = newDelay;
     }
 
-    function isOperation(bytes32 /* id */) external pure returns (bool) {
+    function isOperation(bytes32 /* id */ ) external pure returns (bool) {
         return true;
     }
 
-    function isOperationPending(bytes32 /* id */) external pure returns (bool) {
+    function isOperationPending(bytes32 /* id */ ) external pure returns (bool) {
         return true;
     }
 
-    function isOperationReady(bytes32 /* id */) external pure returns (bool) {
+    function isOperationReady(bytes32 /* id */ ) external pure returns (bool) {
         return true;
     }
 
-    function isOperationDone(bytes32 /* id */) external pure returns (bool) {
+    function isOperationDone(bytes32 /* id */ ) external pure returns (bool) {
         return false;
     }
 
@@ -38,13 +38,11 @@ contract TimelockMock {
         return _operationTimestamps[id];
     }
 
-    function hashOperation(
-        address target,
-        uint256 value,
-        bytes calldata data,
-        bytes32 predecessor,
-        bytes32 salt
-    ) external pure returns (bytes32) {
+    function hashOperation(address target, uint256 value, bytes calldata data, bytes32 predecessor, bytes32 salt)
+        external
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encode(target, value, data, predecessor, salt));
     }
 
@@ -59,48 +57,48 @@ contract TimelockMock {
     }
 
     function schedule(
-        address /* target */,
-        uint256 /* value */,
-        bytes calldata /* data */,
-        bytes32 /* predecessor */,
-        bytes32 /* salt */,
+        address, /* target */
+        uint256, /* value */
+        bytes calldata, /* data */
+        bytes32, /* predecessor */
+        bytes32, /* salt */
         uint256 /* delay */
     ) external {
         // Mock implementation - just return
     }
 
     function scheduleBatch(
-        address[] calldata /* targets */,
-        uint256[] calldata /* values */,
-        bytes[] calldata /* payloads */,
-        bytes32 /* predecessor */,
-        bytes32 /* salt */,
+        address[] calldata, /* targets */
+        uint256[] calldata, /* values */
+        bytes[] calldata, /* payloads */
+        bytes32, /* predecessor */
+        bytes32, /* salt */
         uint256 /* delay */
     ) external {
         // Mock implementation - just return
     }
 
     function execute(
-        address /* target */,
-        uint256 /* value */,
-        bytes calldata /* payload */,
-        bytes32 /* predecessor */,
+        address, /* target */
+        uint256, /* value */
+        bytes calldata, /* payload */
+        bytes32, /* predecessor */
         bytes32 /* salt */
     ) external payable {
         // Mock implementation - just return
     }
 
     function executeBatch(
-        address[] calldata /* targets */,
-        uint256[] calldata /* values */,
-        bytes[] calldata /* payloads */,
-        bytes32 /* predecessor */,
+        address[] calldata, /* targets */
+        uint256[] calldata, /* values */
+        bytes[] calldata, /* payloads */
+        bytes32, /* predecessor */
         bytes32 /* salt */
     ) external payable {
         // Mock implementation - just return
     }
 
-    function cancel(bytes32 /* id */) external {
+    function cancel(bytes32 /* id */ ) external {
         // Mock implementation - just return
     }
 
@@ -109,23 +107,23 @@ contract TimelockMock {
     }
 
     // Required for AccessControl
-    function hasRole(bytes32 /* role */, address /* account */) external pure returns (bool) {
+    function hasRole(bytes32, /* role */ address /* account */ ) external pure returns (bool) {
         return true;
     }
 
-    function getRoleAdmin(bytes32 /* role */) external pure returns (bytes32) {
+    function getRoleAdmin(bytes32 /* role */ ) external pure returns (bytes32) {
         return 0x00;
     }
 
-    function grantRole(bytes32 /* role */, address /* account */) external {
+    function grantRole(bytes32, /* role */ address /* account */ ) external {
         // Mock implementation
     }
 
-    function revokeRole(bytes32 /* role */, address /* account */) external {
+    function revokeRole(bytes32, /* role */ address /* account */ ) external {
         // Mock implementation
     }
 
-    function renounceRole(bytes32 /* role */, address /* account */) external {
+    function renounceRole(bytes32, /* role */ address /* account */ ) external {
         // Mock implementation
     }
 

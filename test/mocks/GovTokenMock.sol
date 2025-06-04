@@ -31,11 +31,11 @@ contract GovTokenMock {
         _votingPower[account] = votes;
     }
 
-    function getPastVotes(address account, uint256 /* timepoint */) external view returns (uint256) {
+    function getPastVotes(address account, uint256 /* timepoint */ ) external view returns (uint256) {
         return _votingPower[account];
     }
 
-    function getPastTotalSupply(uint256 /* timepoint */) external view returns (uint256) {
+    function getPastTotalSupply(uint256 /* timepoint */ ) external view returns (uint256) {
         return _totalSupply;
     }
 
@@ -47,15 +47,15 @@ contract GovTokenMock {
         _delegates[msg.sender] = delegatee;
     }
 
-    function delegateVote(address /* delegator */, address /* delegatee */) external pure {
+    function delegateVote(address, /* delegator */ address /* delegatee */ ) external pure {
         // Mock implementation - do nothing
     }
 
-    function sync(address /* stakeCredit */, address /* user */) external pure {
+    function sync(address, /* stakeCredit */ address /* user */ ) external pure {
         // Mock implementation - do nothing
     }
 
-    function syncBatch(address[] calldata /* stakeCredits */, address /* user */) external pure {
+    function syncBatch(address[] calldata, /* stakeCredits */ address /* user */ ) external pure {
         // Mock implementation - do nothing
     }
 

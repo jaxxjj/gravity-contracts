@@ -218,11 +218,7 @@ contract GenesisTest is Test, TestConstants {
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, validatorCount);
         genesis.initialize(
-            largeValidatorAddresses,
-            largeConsensusAddresses,
-            largeFeeAddresses,
-            largeVotingPowers,
-            largeVoteAddresses
+            largeValidatorAddresses, largeConsensusAddresses, largeFeeAddresses, largeVotingPowers, largeVoteAddresses
         );
 
         // Assert
