@@ -14,7 +14,6 @@ interface IValidatorManager is IReconfigurableModule {
         ACTIVE, // 1
         PENDING_INACTIVE, // 2
         INACTIVE // 3
-
     }
 
     // Commission structure
@@ -64,7 +63,10 @@ interface IValidatorManager is IReconfigurableModule {
 
     /// Validator registration events
     event ValidatorRegistered(
-        address indexed validator, address indexed operator, bytes consensusPublicKey, string moniker
+        address indexed validator,
+        address indexed operator,
+        bytes consensusPublicKey,
+        string moniker
     );
 
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);
@@ -98,6 +100,7 @@ interface IValidatorManager is IReconfigurableModule {
     error ValidatorNotExists(address validator);
     error InvalidCommissionRate(uint64 rate, uint64 maxRate);
     error InvalidStakeAmount(uint256 provided, uint256 required);
+    error StakeExceedsMaximum(uint256 provided, uint256 maximum);
     error UnauthorizedCaller(address caller, address validator);
     error InvalidCommission(); // Invalid commission settings
     error UpdateTooFrequently(); // Update too frequent error
