@@ -7,7 +7,7 @@ contract System {
     uint8 internal constant CODE_OK = 0;
     /*----------------- constants -----------------*/
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-    address public constant GENESIS_ADDR = 0x0000000000000000000000000000000000000001;
+    address public constant GENESIS_ADDR = 0x0000000000000000000000000000000000001008;
     address public constant SYSTEM_CALLER = 0x0000000000000000000000000000000000000000;
     address internal constant PERFORMANCE_TRACKER_ADDR = 0x00000000000000000000000000000000000000f1;
     address internal constant EPOCH_MANAGER_ADDR = 0x00000000000000000000000000000000000000f3;

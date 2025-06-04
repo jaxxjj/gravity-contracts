@@ -8,7 +8,7 @@ pragma solidity 0.8.30;
 contract TestConstants {
     // ======== System Contract Addresses (from System.sol) ========
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-    address public constant GENESIS_ADDR = 0x0000000000000000000000000000000000000001;
+    address public constant GENESIS_ADDR = 0x0000000000000000000000000000000000001008;
     address public constant SYSTEM_CALLER = 0x0000000000000000000000000000000000000000;
     address public constant PERFORMANCE_TRACKER_ADDR = 0x00000000000000000000000000000000000000f1;
     address public constant EPOCH_MANAGER_ADDR = 0x00000000000000000000000000000000000000f3;

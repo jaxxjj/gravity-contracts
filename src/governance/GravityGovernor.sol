@@ -14,8 +14,8 @@ import "@src/access/Protectable.sol";
 import "@src/lib/Bytes.sol";
 import "@src/interfaces/IGovToken.sol";
 import "@src/lib/Bytes.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IVotes } from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import "@src/interfaces/IEpochManager.sol";
 
 contract GravityGovernor is
@@ -97,8 +97,8 @@ contract GravityGovernor is
         if (latestProposalId != 0) {
             ProposalState proposersLatestProposalState = state(latestProposalId);
             if (
-                proposersLatestProposalState == ProposalState.Active
-                    || proposersLatestProposalState == ProposalState.Pending
+                proposersLatestProposalState == ProposalState.Active ||
+                proposersLatestProposalState == ProposalState.Pending
             ) {
                 revert OneLiveProposalPerProposer();
             }
@@ -118,13 +118,12 @@ contract GravityGovernor is
      * @param calldatas calldata for each contract call
      * @param descriptionHash the description hash
      */
-    function queue(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
-        public
-        override
-        whenNotPaused
-        notInBlackList
-        returns (uint256 proposalId)
-    {
+    function queue(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) public override whenNotPaused notInBlackList returns (uint256 proposalId) {
         for (uint256 i = 0; i < targets.length; i++) {
             if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }
@@ -140,27 +139,27 @@ contract GravityGovernor is
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (Strings.equal(key, "votingDelay")) {
             if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newVotingDelay = value.bytesToUint256(32);
+            uint256 newVotingDelay = value.bytesToUint256(0);
             if (newVotingDelay == 0 || newVotingDelay > 24 hours) revert InvalidValue(key, value);
             _setVotingDelay(SafeCast.toUint48(newVotingDelay));
         } else if (Strings.equal(key, "votingPeriod")) {
             if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newVotingPeriod = value.bytesToUint256(32);
+            uint256 newVotingPeriod = value.bytesToUint256(0);
             if (newVotingPeriod == 0 || newVotingPeriod > 30 days) revert InvalidValue(key, value);
             _setVotingPeriod(SafeCast.toUint32(newVotingPeriod));
         } else if (Strings.equal(key, "proposalThreshold")) {
             if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newProposalThreshold = value.bytesToUint256(32);
+            uint256 newProposalThreshold = value.bytesToUint256(0);
             if (newProposalThreshold == 0 || newProposalThreshold > 10_000 ether) revert InvalidValue(key, value);
             _setProposalThreshold(newProposalThreshold);
         } else if (Strings.equal(key, "quorumNumerator")) {
             if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newQuorumNumerator = value.bytesToUint256(32);
+            uint256 newQuorumNumerator = value.bytesToUint256(0);
             if (newQuorumNumerator < 5 || newQuorumNumerator > 20) revert InvalidValue(key, value);
             _updateQuorumNumerator(newQuorumNumerator);
         } else if (Strings.equal(key, "minPeriodAfterQuorum")) {
             if (value.length != 8) revert InvalidValue(key, value);
-            uint64 newMinPeriodAfterQuorum = value.bytesToUint64(8);
+            uint64 newMinPeriodAfterQuorum = value.bytesToUint64(0);
             if (newMinPeriodAfterQuorum == 0 || newMinPeriodAfterQuorum > 2 days) revert InvalidValue(key, value);
             _setLateQuorumVoteExtension(SafeCast.toUint48(newMinPeriodAfterQuorum));
         } else {
@@ -178,12 +177,9 @@ contract GravityGovernor is
      * @notice module:core
      * @dev Current state of a proposal, following Compound's convention
      */
-    function state(uint256 proposalId)
-        public
-        view
-        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
-        returns (ProposalState)
-    {
+    function state(
+        uint256 proposalId
+    ) public view override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (ProposalState) {
         return GovernorTimelockControlUpgradeable.state(proposalId);
     }
 
@@ -204,12 +200,9 @@ contract GravityGovernor is
      * @dev Timepoint at which votes close. If using block number, votes close at the end of this block, so it is
      * possible to cast a vote during this block.
      */
-    function proposalDeadline(uint256 proposalId)
-        public
-        view
-        override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
-        returns (uint256)
-    {
+    function proposalDeadline(
+        uint256 proposalId
+    ) public view override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable) returns (uint256) {
         return GovernorPreventLateQuorumUpgradeable.proposalDeadline(proposalId);
     }
 
@@ -249,13 +242,13 @@ contract GravityGovernor is
         return GovernorTimelockControlUpgradeable._cancel(targets, values, calldatas, descriptionHash);
     }
 
-    function _castVote(uint256 proposalId, address account, uint8 support, string memory reason, bytes memory params)
-        internal
-        override(GovernorUpgradeable)
-        whenNotPaused
-        notInBlackList
-        returns (uint256)
-    {
+    function _castVote(
+        uint256 proposalId,
+        address account,
+        uint8 support,
+        string memory reason,
+        bytes memory params
+    ) internal override(GovernorUpgradeable) whenNotPaused notInBlackList returns (uint256) {
         return super._castVote(proposalId, account, support, reason, params);
     }
 
@@ -281,28 +274,30 @@ contract GravityGovernor is
         bytes32 descriptionHash
     ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (uint48) {
         return
-            GovernorTimelockControlUpgradeable._queueOperations(proposalId, targets, values, calldatas, descriptionHash);
+            GovernorTimelockControlUpgradeable._queueOperations(
+                proposalId,
+                targets,
+                values,
+                calldatas,
+                descriptionHash
+            );
     }
 
     /**
      * @dev Override _tallyUpdated to resolve conflict between GovernorUpgradeable and GovernorPreventLateQuorumUpgradeable
      */
-    function _tallyUpdated(uint256 proposalId)
-        internal
-        override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
-    {
+    function _tallyUpdated(
+        uint256 proposalId
+    ) internal override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable) {
         GovernorPreventLateQuorumUpgradeable._tallyUpdated(proposalId);
     }
 
     /**
      * @dev Override proposalNeedsQueuing to resolve conflict between GovernorUpgradeable and GovernorTimelockControlUpgradeable
      */
-    function proposalNeedsQueuing(uint256 proposalId)
-        public
-        view
-        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
-        returns (bool)
-    {
+    function proposalNeedsQueuing(
+        uint256 proposalId
+    ) public view override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (bool) {
         return GovernorTimelockControlUpgradeable.proposalNeedsQueuing(proposalId);
     }
 
@@ -374,11 +369,9 @@ contract GravityGovernor is
     /**
      * @dev Accessor to the internal vote counts.
      */
-    function proposalVotes(uint256 proposalId)
-        public
-        view
-        returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)
-    {
+    function proposalVotes(
+        uint256 proposalId
+    ) public view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes) {
         ProposalVote storage proposalVote = _proposalVotes[proposalId];
         return (proposalVote.againstVotes, proposalVote.forVotes, proposalVote.abstainVotes);
     }
