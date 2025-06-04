@@ -80,11 +80,7 @@ contract Genesis is System {
 
         // Initialize ValidatorManager with initial validator data
         IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(
-            validatorAddresses,
-            consensusAddresses,
-            feeAddresses,
-            votingPowers,
-            voteAddresses
+            validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses
         );
 
         // Initialize ValidatorPerformanceTracker
