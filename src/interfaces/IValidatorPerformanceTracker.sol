@@ -26,7 +26,10 @@ interface IValidatorPerformanceTracker {
 
     /// Epoch performance data finalization event
     event EpochPerformanceFinalized(
-        uint256 indexed epoch, uint256 totalValidators, uint256 totalSuccessfulProposals, uint256 totalFailedProposals
+        uint256 indexed epoch,
+        uint256 totalValidators,
+        uint256 totalSuccessfulProposals,
+        uint256 totalFailedProposals
     );
 
     /// Active validator set update event
@@ -59,22 +62,14 @@ interface IValidatorPerformanceTracker {
     function onNewEpoch() external;
 
     /**
-     * @dev Manually update active validator set
-     * @param newValidators New list of active validators
-     * @param epoch Current epoch number
-     */
-    function updateActiveValidatorSet(address[] calldata newValidators, uint256 epoch) external;
-
-    /**
      * @dev Get current epoch proposal statistics
      * @param validatorIndex Validator index
      * @return successful Number of successful proposals
      * @return failed Number of failed proposals
      */
-    function getCurrentEpochProposalCounts(uint256 validatorIndex)
-        external
-        view
-        returns (uint64 successful, uint64 failed);
+    function getCurrentEpochProposalCounts(
+        uint256 validatorIndex
+    ) external view returns (uint64 successful, uint64 failed);
 
     /**
      * @dev Get validator performance by address
@@ -84,10 +79,9 @@ interface IValidatorPerformanceTracker {
      * @return index Validator index
      * @return exists Whether validator exists
      */
-    function getValidatorPerformance(address validator)
-        external
-        view
-        returns (uint64 successful, uint64 failed, uint256 index, bool exists);
+    function getValidatorPerformance(
+        address validator
+    ) external view returns (uint64 successful, uint64 failed, uint256 index, bool exists);
 
     /**
      * @dev Get historical epoch performance data
@@ -96,10 +90,10 @@ interface IValidatorPerformanceTracker {
      * @return successful Number of successful proposals
      * @return failed Number of failed proposals
      */
-    function getHistoricalPerformance(uint256 epoch, uint256 validatorIndex)
-        external
-        view
-        returns (uint64 successful, uint64 failed);
+    function getHistoricalPerformance(
+        uint256 epoch,
+        uint256 validatorIndex
+    ) external view returns (uint64 successful, uint64 failed);
 
     /**
      * @dev Get all current validator addresses
@@ -145,7 +139,9 @@ interface IValidatorPerformanceTracker {
      * @return totalFailed Total failed proposals
      * @return averageSuccessRate Average success rate in basis points
      */
-    function getEpochSummary(uint256 epoch)
+    function getEpochSummary(
+        uint256 epoch
+    )
         external
         view
         returns (uint256 totalValidators, uint256 totalSuccessful, uint256 totalFailed, uint256 averageSuccessRate);
