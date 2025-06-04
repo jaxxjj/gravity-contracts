@@ -14,6 +14,7 @@ interface IValidatorManager is IReconfigurableModule {
         ACTIVE, // 1
         PENDING_INACTIVE, // 2
         INACTIVE // 3
+
     }
 
     // Commission structure
@@ -63,10 +64,7 @@ interface IValidatorManager is IReconfigurableModule {
 
     /// Validator registration events
     event ValidatorRegistered(
-        address indexed validator,
-        address indexed operator,
-        bytes consensusPublicKey,
-        string moniker
+        address indexed validator, address indexed operator, bytes consensusPublicKey, string moniker
     );
 
     event StakeCreditDeployed(address indexed validator, address stakeCreditAddress);

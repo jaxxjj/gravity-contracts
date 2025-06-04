@@ -17,6 +17,9 @@ import "@src/interfaces/IGovToken.sol";
  * @dev Contract for delegating tokens to validators and managing stake
  */
 contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
+    // ======== Errors ========
+    error InvalidValidator();
+
     // ======== Modifiers ========
     modifier validatorExists(address validator) {
         if (!IValidatorManager(VALIDATOR_MANAGER_ADDR).isValidatorExists(validator)) {
@@ -72,14 +75,44 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
         IGovToken(GOV_TOKEN_ADDR).sync(stakeCreditAddress, msg.sender);
     }
 
-    /// @inheritdoc IDelegation
-    function claim(address validator, uint256 requestCount) external validatorExists(validator) whenNotPaused {
+    /**
+     * @dev Claim matured unlocked stake from a validator
+     * Uses Pull model - delegator must actively claim after unbonding period
+     * @param validator The validator to claim from
+     * @return amount The amount claimed
+     */
+    function claim(address validator) external nonReentrant returns (uint256 amount) {
         address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
-        require(stakeCreditAddress != address(0), "Delegation: StakeCredit not found");
+        if (stakeCreditAddress == address(0)) revert InvalidValidator();
 
-        uint256 claimedAmount = StakeCredit(payable(stakeCreditAddress)).withdraw(payable(msg.sender), requestCount);
+        // Call claim on StakeCredit contract
+        amount = IStakeCredit(stakeCreditAddress).claim(payable(msg.sender));
 
-        emit UnbondedTokensWithdrawn(msg.sender, claimedAmount);
+        if (amount > 0) {
+            emit StakeClaimed(msg.sender, validator, amount);
+        }
+
+        return amount;
+    }
+
+    /**
+     * @dev Batch claim from multiple validators
+     * @param validators Array of validator addresses to claim from
+     * @return totalClaimed Total amount claimed
+     */
+    function claimBatch(address[] calldata validators) external nonReentrant returns (uint256 totalClaimed) {
+        for (uint256 i = 0; i < validators.length; i++) {
+            address stakeCreditAddress =
+                IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validators[i]);
+            if (stakeCreditAddress != address(0)) {
+                uint256 claimed = IStakeCredit(stakeCreditAddress).claim(payable(msg.sender));
+                if (claimed > 0) {
+                    totalClaimed += claimed;
+                    emit StakeClaimed(msg.sender, validators[i], claimed);
+                }
+            }
+        }
+        return totalClaimed;
     }
 
     /**

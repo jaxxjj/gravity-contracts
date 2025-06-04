@@ -15,9 +15,8 @@ interface IDelegation {
     error Delegation__TransferFailed();
 
     // ======== Events ========
-    event Delegated(address indexed validator, address indexed delegator, uint256 shares, uint256 amount);
+
     event Undelegated(address indexed validator, address indexed delegator, uint256 shares, uint256 amount);
-    event UnbondedTokensWithdrawn(address indexed delegator, uint256 amount);
     event Redelegated(
         address indexed srcValidator,
         address indexed dstValidator,
@@ -28,6 +27,13 @@ interface IDelegation {
         uint256 feeCharge
     );
     event VoteDelegated(address indexed delegator, address indexed voter);
+    event Delegated(address indexed delegator, address indexed validator, uint256 amount, uint256 shares);
+    event Undelegated(address indexed delegator, address indexed validator, uint256 amount);
+    event Redelegated(
+        address indexed delegator, address indexed fromValidator, address indexed toValidator, uint256 amount
+    );
+    event UnbondedTokensWithdrawn(address indexed delegator, uint256 amount);
+    event StakeClaimed(address indexed delegator, address indexed validator, uint256 amount);
 
     // ======== Core Functions ========
     /**
@@ -44,11 +50,18 @@ interface IDelegation {
     function undelegate(address validator, uint256 shares) external;
 
     /**
-     * @dev Claim unbonded tokens
-     * @param validator The validator address to claim from
-     * @param requestCount The number of unbonding requests to process
+     * @dev Claim matured unlocked stake from a validator (Pull model)
+     * @param validator The validator to claim from
+     * @return amount The amount claimed
      */
-    function claim(address validator, uint256 requestCount) external;
+    function claim(address validator) external returns (uint256 amount);
+
+    /**
+     * @dev Batch claim from multiple validators
+     * @param validators Array of validator addresses to claim from
+     * @return totalClaimed Total amount claimed
+     */
+    function claimBatch(address[] calldata validators) external returns (uint256 totalClaimed);
 
     /**
      * @dev Redelegate tokens from one validator to another

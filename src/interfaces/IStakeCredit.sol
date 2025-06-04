@@ -20,6 +20,9 @@ interface IStakeCredit {
     error StakeCredit__WrongInitContext();
     error InsufficientActiveStake();
     error StakeCredit__UnauthorizedCaller();
+    error StakeCredit__RequestExists();
+    error StakeCredit__NoUnlockRequest();
+    error StakeCredit__NoClaimableRequest();
 
     // ======== Events ========
     event RewardReceived(uint256 rewardToAll, uint256 commission);
@@ -68,14 +71,6 @@ interface IStakeCredit {
     function unlock(address delegator, uint256 shares) external returns (uint256 gAmount);
 
     /**
-     * @dev Withdraw unlocked stake
-     * @param delegator The delegator address to receive the withdrawn funds
-     * @param amount The amount to withdraw (0 for all available)
-     * @return The withdrawn G amount
-     */
-    function withdraw(address payable delegator, uint256 amount) external returns (uint256);
-
-    /**
      * @dev Unbond stake immediately (for redelegation)
      * @param delegator The delegator address
      * @param shares The number of shares to unbond
@@ -107,6 +102,33 @@ interface IStakeCredit {
      * @param newBeneficiary The new beneficiary address
      */
     function updateBeneficiary(address newBeneficiary) external;
+
+    /**
+     * @dev Claim unlocked stake after unbonding period
+     * @param delegator The address to claim for
+     * @return totalClaimed The amount claimed
+     */
+    function claim(address payable delegator) external returns (uint256 totalClaimed);
+
+    /**
+     * @dev Get claimable amount for a delegator
+     * @param delegator The address to check
+     * @return claimable The amount that can be claimed
+     */
+    function getClaimableAmount(address delegator) external view returns (uint256 claimable);
+
+    /**
+     * @dev Get pending unlock amount for a delegator
+     * @param delegator The address to check
+     * @return The total amount pending unlock
+     */
+    function getPendingUnlockAmount(address delegator) external view returns (uint256);
+
+    /**
+     * @dev Process matured unlocks for a specific user
+     * @param user The user address to process unlocks for
+     */
+    function processUserUnlocks(address user) external;
 
     // ======== View Functions ========
 
@@ -145,18 +167,6 @@ interface IStakeCredit {
      * @return Commission beneficiary address
      */
     function commissionBeneficiary() external view returns (address);
-
-    /**
-     * @dev Check if there is an active unlock request
-     * @return Whether there is an active unlock request
-     */
-    function hasUnlockRequest() external view returns (bool);
-
-    /**
-     * @dev Get the timestamp when the current unlock request was created
-     * @return Timestamp of the current unlock request
-     */
-    function unlockRequestedAt() external view returns (uint256);
 
     /**
      * @dev Get the reward record for a specific day

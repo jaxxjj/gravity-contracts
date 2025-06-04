@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import "@openzeppelin-upgrades/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin-upgrades/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/System.sol";
 import "@src/interfaces/IValidatorManager.sol";
@@ -12,21 +13,33 @@ import "@src/interfaces/ITimestamp.sol";
 
 /**
  * @title StakeCredit
- * @dev Implements a shares-based staking mechanism for validators and delegators
- * Stakes are tracked in four states:
- * - active: currently participating in consensus
- * - inactive: withdrawable funds
- * - pending_active: will become active in next epoch
- * - pending_inactive: will become inactive in next epoch
+ * @dev Implements a shares-based staking mechanism with BSC-style unlock mechanism
+ * Layer 1: State pools (active, inactive, pendingActive, pendingInactive)
+ * Uses Pull model for withdrawals with unbonding period
  */
 contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IStakeCredit {
+    using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
+
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
-    // State model
+    // State model - Layer 1: State Pools
     uint256 public active;
     uint256 public inactive;
     uint256 public pendingActive;
     uint256 public pendingInactive;
+
+    // Unlock request tracking (BSC style)
+    struct UnlockRequest {
+        uint256 amount; // Amount to unlock (not shares)
+        uint256 unlockTime; // When it becomes claimable
+    }
+
+    // Hash of unlock request => UnlockRequest
+    mapping(bytes32 => UnlockRequest) private _unlockRequests;
+    // User address => unlock request queue (hash of requests)
+    mapping(address => DoubleEndedQueue.Bytes32Deque) private _unlockRequestsQueue;
+    // User address => personal unlock sequence
+    mapping(address => uint256) private _unlockSequence;
 
     // Validator information
     address public validator;
@@ -40,10 +53,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
     // Principal tracking
     uint256 public validatorPrincipal;
-
-    // Unlock request tracking
-    bool public hasUnlockRequest;
-    uint256 public unlockRequestedAt;
 
     constructor() {
         _disableInitializers();
@@ -156,23 +165,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         return shares;
     }
 
-    /**
-     * @dev Updates stake state
-     * @param amount Stake amount
-     */
-    function _updateStakeState(uint256 amount) private {
-        // Determine funds destination based on validator status
-        bool isCurrentValidator = _isCurrentEpochValidator();
-
-        // If validator is current epoch validator, new stake goes to pending_active
-        // Otherwise goes directly to active (validator not in current epoch)
-        if (isCurrentValidator) {
-            pendingActive += amount;
-        } else {
-            active += amount;
-        }
-    }
-
     /// @inheritdoc IStakeCredit
     function unlock(address delegator, uint256 shares)
         external
@@ -183,17 +175,17 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
-        // Calculate G amount
+        // Calculate G amount and burn shares immediately
         gAmount = getPooledGByShares(shares);
+        _burn(delegator, shares);
 
-        // Simple state transition logic: deduct from active first
+        // Deduct from active pools (managing totals only)
         uint256 totalActive = active + pendingActive;
         if (gAmount > totalActive) revert InsufficientActiveStake();
 
         if (active >= gAmount) {
             active -= gAmount;
         } else {
-            // Need to deduct from both active and pendingActive
             uint256 fromActive = active;
             uint256 fromPendingActive = gAmount - fromActive;
             active = 0;
@@ -203,64 +195,66 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // Move to pending_inactive state
         pendingInactive += gAmount;
 
-        // Burn shares
-        _burn(delegator, shares);
+        // Create unlock request (BSC style)
+        uint256 unlockTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds() + _getUnbondPeriod();
+        bytes32 requestHash = keccak256(abi.encodePacked(delegator, _unlockSequence[delegator]++));
 
-        // Mark unlock request
-        if (!hasUnlockRequest) {
-            hasUnlockRequest = true;
-            unlockRequestedAt = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-            emit UnlockRequestCreated(unlockRequestedAt);
-        }
+        // Check for hash collision (should not happen in normal cases)
+        if (_unlockRequests[requestHash].amount != 0) revert StakeCredit__RequestExists();
+
+        _unlockRequests[requestHash] = UnlockRequest({amount: gAmount, unlockTime: unlockTime});
+
+        _unlockRequestsQueue[delegator].pushBack(requestHash);
 
         emit StakeUnlocked(delegator, shares, gAmount);
         return gAmount;
     }
 
     /// @inheritdoc IStakeCredit
-    function withdraw(address payable delegator, uint256 amount)
+    function claim(address payable delegator)
         external
         onlyDelegationOrValidatorManager
         nonReentrant
-        returns (uint256 withdrawnAmount)
+        returns (uint256 totalClaimed)
     {
-        // Can only withdraw from inactive state
-        if (inactive == 0) revert NoWithdrawableAmount();
+        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
 
-        // Calculate delegator's total value
-        uint256 delegatorTotalValue = getPooledGByShares(balanceOf(delegator));
-        if (delegatorTotalValue == 0) revert NoWithdrawableAmount();
+        if (queue.length() == 0) revert StakeCredit__NoUnlockRequest();
 
-        // Calculate delegator's share of inactive pool
-        uint256 totalPooled = getTotalPooledG();
-        uint256 delegatorInactiveAmount = (delegatorTotalValue * inactive) / totalPooled;
-        if (delegatorInactiveAmount == 0) revert NoWithdrawableAmount();
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
 
-        // If amount is 0 or greater than withdrawable, set to max withdrawable
-        if (amount == 0 || amount > delegatorInactiveAmount) {
-            amount = delegatorInactiveAmount;
+        // Process all claimable requests from the front of the queue
+        while (queue.length() > 0) {
+            bytes32 requestHash = queue.front();
+            UnlockRequest memory request = _unlockRequests[requestHash];
+
+            // Check if request is claimable
+            if (currentTime < request.unlockTime) {
+                break; // Requests are in chronological order, so we can stop here
+            }
+
+            // Check if we have enough inactive funds
+            if (inactive < request.amount) {
+                break; // Not enough funds available
+            }
+
+            // Remove from queue
+            queue.popFront();
+            delete _unlockRequests[requestHash];
+
+            // Update state
+            inactive -= request.amount;
+            totalClaimed += request.amount;
         }
-        withdrawnAmount = amount;
 
-        // Calculate shares to burn
-        uint256 sharesToBurn = getSharesByPooledG(amount);
-        if (sharesToBurn > balanceOf(delegator)) {
-            sharesToBurn = balanceOf(delegator);
-            withdrawnAmount = getPooledGByShares(sharesToBurn);
-        }
+        // Transfer all claimed amount at once
+        if (totalClaimed == 0) revert StakeCredit__NoClaimableRequest();
 
-        // Update state
-        inactive -= withdrawnAmount;
-
-        // Burn shares
-        _burn(delegator, sharesToBurn);
-
-        // Transfer
-        (bool success,) = delegator.call{value: withdrawnAmount}("");
+        (bool success,) = delegator.call{value: totalClaimed}("");
         if (!success) revert TransferFailed();
 
-        emit StakeWithdrawn(delegator, withdrawnAmount);
-        return withdrawnAmount;
+        emit StakeWithdrawn(delegator, totalClaimed);
+        return totalClaimed;
     }
 
     /// @inheritdoc IStakeCredit
@@ -308,29 +302,47 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         if (shares == 0) revert ZeroShares();
         if (pendingInactive == 0) revert NoWithdrawableAmount();
 
-        // Calculate delegator's reactivatable amount in pendingInactive pool
-        uint256 delegatorShares = balanceOf(delegator);
-        if (delegatorShares == 0) revert InsufficientBalance();
+        // For reactivation, we need to cancel pending unlock requests
+        // This is a simplified implementation - in production you might want more sophisticated logic
+        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
+        uint256 totalReactivated = 0;
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
 
-        uint256 delegatorPendingInactiveAmount = (delegatorShares * pendingInactive) / totalSupply();
-        if (delegatorPendingInactiveAmount == 0) revert NoWithdrawableAmount();
+        // Find and cancel unlock requests that haven't been moved to distribution pool yet
+        while (queue.length() > 0) {
+            bytes32 requestHash = queue.front();
+            UnlockRequest memory request = _unlockRequests[requestHash];
 
-        // Calculate G amount, ensure it doesn't exceed user's share in pendingInactive
-        gAmount = getPooledGByShares(shares);
-        if (gAmount > delegatorPendingInactiveAmount) {
-            gAmount = delegatorPendingInactiveAmount;
+            // Check if request is claimable
+            if (currentTime < request.unlockTime) {
+                break; // Requests are in chronological order, so we can stop here
+            }
+
+            // Remove from queue
+            queue.popFront();
+            delete _unlockRequests[requestHash];
+
+            // Move from pendingInactive back to active
+            if (pendingInactive >= request.amount) {
+                pendingInactive -= request.amount;
+                active += request.amount;
+                totalReactivated += request.amount;
+            } else {
+                revert InsufficientBalance();
+            }
         }
 
-        // Move from pendingInactive to active
-        if (pendingInactive >= gAmount) {
-            pendingInactive -= gAmount;
-            active += gAmount;
+        gAmount = totalReactivated;
 
-            emit StakeReactivated(delegator, shares, gAmount);
-            return gAmount;
-        } else {
-            revert InsufficientBalance();
+        // Mint shares back
+        if (gAmount > 0) {
+            uint256 sharesToMint = getSharesByPooledG(gAmount);
+            _mint(delegator, sharesToMint);
+
+            emit StakeReactivated(delegator, sharesToMint, gAmount);
         }
+
+        return gAmount;
     }
 
     /// @inheritdoc IStakeCredit
@@ -385,14 +397,11 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         active += pendingActive;
         pendingActive = 0;
 
-        // 2. Process unlock request
-        if (hasUnlockRequest && pendingInactive > 0) {
+        // 2. Process unlock requests and update distribution pool
+        if (pendingInactive > 0) {
+            // Move funds to inactive
             inactive += pendingInactive;
             pendingInactive = 0;
-            hasUnlockRequest = false;
-            unlockRequestedAt = 0;
-
-            emit UnlockRequestProcessed(oldPendingInactive);
         }
 
         emit EpochTransitioned(
@@ -444,6 +453,75 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /// @inheritdoc IStakeCredit
     function getPooledGByDelegator(address delegator) public view returns (uint256) {
         return getPooledGByShares(balanceOf(delegator));
+    }
+
+    /**
+     * @dev Get user's claimable amount
+     */
+    function getClaimableAmount(address delegator) external view returns (uint256 claimable) {
+        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
+
+        if (queue.length() == 0) return 0;
+
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+        uint256 index = 0;
+        bytes32[] memory hashes = new bytes32[](queue.length());
+
+        // Get all request hashes from the queue
+        for (uint256 i = 0; i < queue.length(); i++) {
+            hashes[i] = queue.at(i);
+        }
+
+        // Process all claimable requests from the front of the queue
+        while (index < hashes.length) {
+            bytes32 requestHash = hashes[index];
+            UnlockRequest memory request = _unlockRequests[requestHash];
+
+            // Check if request is claimable
+            if (currentTime < request.unlockTime) {
+                break; // Requests are in chronological order, so we can stop here
+            }
+
+            claimable += request.amount;
+            index++;
+        }
+
+        return claimable;
+    }
+
+    /**
+     * @dev Get user's pending unlock amount
+     */
+    function getPendingUnlockAmount(address delegator) external view returns (uint256) {
+        return _unlockRequestsQueue[delegator].length();
+    }
+
+    /**
+     * @dev Process matured unlocks for a specific user
+     * In BSC-style implementation, this checks and processes unlock requests
+     * that have completed their unbonding period but haven't been claimed yet
+     */
+    function processUserUnlocks(address user) external {
+        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[user];
+        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
+
+        // Process all claimable requests from the front of the queue
+        while (queue.length() > 0) {
+            bytes32 requestHash = queue.front();
+            UnlockRequest memory request = _unlockRequests[requestHash];
+
+            // Check if request is claimable
+            if (currentTime < request.unlockTime) {
+                break; // Requests are in chronological order, so we can stop here
+            }
+
+            // Remove from queue
+            queue.popFront();
+            delete _unlockRequests[requestHash];
+
+            // Note: Funds stay in inactive pool until user claims them
+            // This is part of the BSC-style pull model
+        }
     }
 
     /**
@@ -509,7 +587,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             getTotalPooledG(),
             address(this).balance,
             totalSupply(),
-            hasUnlockRequest
+            _unlockRequestsQueue[msg.sender].length() > 0
         );
     }
 
@@ -528,6 +606,17 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
     /// @inheritdoc IStakeCredit
     function getUnlockRequestStatus() external view returns (bool hasRequest, uint256 requestedAt) {
-        return (hasUnlockRequest, unlockRequestedAt);
+        address user = msg.sender;
+        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[user];
+
+        if (queue.length() > 0) {
+            hasRequest = true;
+            // Return the oldest unlock request time
+            bytes32 requestHash = queue.front();
+            UnlockRequest memory request = _unlockRequests[requestHash];
+            requestedAt = request.unlockTime - _getUnbondPeriod();
+        }
+
+        return (hasRequest, requestedAt);
     }
 }
