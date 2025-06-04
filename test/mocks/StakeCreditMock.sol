@@ -6,6 +6,9 @@ import "@src/interfaces/IStakeCredit.sol";
 contract StakeCreditMock is IStakeCredit {
     uint256 private _totalPooledG;
 
+    // Allow receiving ETH for fee payments
+    receive() external payable {}
+
     function setTotalPooledG(uint256 amount) external {
         _totalPooledG = amount;
     }

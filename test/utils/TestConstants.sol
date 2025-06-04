@@ -31,10 +31,10 @@ contract TestConstants {
     // ======== Test-Specific Constants ========
     address public constant VALID_PROPOSER = address(0x123);
     address public constant INVALID_PROPOSER = address(0x456);
-    address public constant TEST_VALIDATOR_1 = address(0x1001);
-    address public constant TEST_VALIDATOR_2 = address(0x1002);
-    address public constant TEST_DELEGATOR_1 = address(0x2001);
-    address public constant TEST_DELEGATOR_2 = address(0x2002);
+    address public constant TEST_VALIDATOR_1 = address(0x111111);
+    address public constant TEST_VALIDATOR_2 = address(0x222222);
+    address public constant TEST_DELEGATOR_1 = address(0x333333);
+    address public constant TEST_DELEGATOR_2 = address(0x444444);
     address public constant NOT_SYSTEM_CALLER = address(0x888);
     address public constant NOT_GENESIS = address(0x999);
 
