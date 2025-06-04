@@ -196,8 +196,6 @@ contract GenesisTest is Test, TestConstants {
         assertTrue(genesis.isGenesisCompleted());
     }
 
-    // ============ LARGE VALIDATOR SET TESTS ============
-
     function test_initialize_largeValidatorSet_shouldWork() public {
         // Arrange - Create a large validator set (100 validators)
         uint256 validatorCount = 100;
@@ -220,14 +218,16 @@ contract GenesisTest is Test, TestConstants {
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, validatorCount);
         genesis.initialize(
-            largeValidatorAddresses, largeConsensusAddresses, largeFeeAddresses, largeVotingPowers, largeVoteAddresses
+            largeValidatorAddresses,
+            largeConsensusAddresses,
+            largeFeeAddresses,
+            largeVotingPowers,
+            largeVoteAddresses
         );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
     }
-
-    // ============ EDGE CASE TESTS ============
 
     function test_initialize_maxVotingPower_shouldWork() public {
         // Arrange - Set maximum voting power
@@ -301,8 +301,6 @@ contract GenesisTest is Test, TestConstants {
         genesis.initialize(validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses);
     }
 
-    // ============ INTEGRATION SCENARIO TESTS ============
-
     function test_fullGenesisWorkflow_shouldInitializeAllComponents() public {
         // Arrange - Verify initial state
         assertFalse(genesis.isGenesisCompleted());
@@ -328,7 +326,7 @@ contract GenesisTest is Test, TestConstants {
         uint64[] memory realisticPowers = new uint64[](5);
         bytes[] memory realisticVotes = new bytes[](5);
 
-        // Mainnet-like addresses and powers
+        // addresses and powers
         realisticValidators[0] = 0x1234567890123456789012345678901234567890;
         realisticValidators[1] = 0x2345678901234567890123456789012345678901;
         realisticValidators[2] = 0x3456789012345678901234567890123456789012;
