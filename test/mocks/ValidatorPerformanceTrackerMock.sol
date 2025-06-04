@@ -11,6 +11,12 @@ contract ValidatorPerformanceTrackerMock {
 
     UpdateCall public lastCall;
     uint256 public totalCalls;
+    bool public initialized;
+
+    function initialize(address[] calldata validatorAddresses) external {
+        initialized = true;
+        // Mock initialization - just store that we're initialized
+    }
 
     function updatePerformanceStatistics(uint64 proposerIndex, uint64[] calldata failedProposerIndices) external {
         lastCall.proposerIndex = proposerIndex;
