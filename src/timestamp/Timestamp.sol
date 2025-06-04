@@ -9,9 +9,8 @@ import "@src/interfaces/ITimestamp.sol";
  */
 
 contract Timestamp is System, ITimestamp {
-    /// 秒和微秒之间的转换因子
-
-    /// 当前Unix时间（微秒）
+    /// @dev Conversion factor between seconds and microseconds
+    uint64 public constant MICRO_CONVERSION_FACTOR = 1_000_000;
     uint64 public microseconds;
 
     /**

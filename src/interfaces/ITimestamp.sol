@@ -3,46 +3,49 @@ pragma solidity 0.8.30;
 
 /**
  * @title ITimestamp
- * @dev Interface for the Timestamp contract that manages global time
+ * @dev Interface for the Timestamp contract - replicates Aptos timestamp.move module with timeStarted functionality removed
  */
 interface ITimestamp {
-    /// Custom errors
-    error InvalidTimestamp(uint64 provided, uint64 current);
-    error TimestampMustAdvance(uint64 provided, uint64 current);
-    error TimestampMustEqual(uint64 provided, uint64 expected);
-    error onlyGovAccount();
-    error NotTestEnvironment();
-
-    /// Events
+    /**
+     * @dev Emitted when global time is updated through consensus
+     * @param proposer The address of the block proposer
+     * @param oldTimestamp The previous timestamp in microseconds
+     * @param newTimestamp The new timestamp in microseconds
+     * @param isNilBlock Whether this is a NIL block (proposer is SYSTEM_CALLER)
+     */
     event GlobalTimeUpdated(address indexed proposer, uint64 oldTimestamp, uint64 newTimestamp, bool isNilBlock);
 
-    /// @dev 当前Unix时间（微秒）
-    function microseconds() external view returns (uint64);
+    error TimestampMustEqual(uint64 providedTimestamp, uint64 currentTimestamp);
+
+    error TimestampMustAdvance(uint64 providedTimestamp, uint64 currentTimestamp);
 
     /**
-     * @dev 通过共识更新全局时间，需要VM权限，在block prologue期间调用
-     * @param proposer 提议者地址
-     * @param timestamp 新的时间戳（微秒）
+     * @dev Updates global time through consensus, requires VM permissions, called during block prologue
+     * Corresponds exactly to Aptos's update_global_time function
+     * @param proposer The proposer's address
+     * @param timestamp The new timestamp in microseconds
      */
     function updateGlobalTime(address proposer, uint64 timestamp) external;
 
     /**
-     * @dev 获取当前时间（微秒）- 任何人都可以调用
-     * @return 当前时间，以微秒为单位
+     * @dev Gets the current time in microseconds - callable by anyone
+     * Corresponds to Aptos's now_microseconds function
+     * @return The current Unix timestamp in microseconds
      */
     function nowMicroseconds() external view returns (uint64);
 
     /**
-     * @dev 获取当前时间（秒）- 任何人都可以调用
-     * @return 当前时间，以秒为单位
+     * @dev Gets the current time in seconds - callable by anyone
+     * Corresponds to Aptos's now_seconds function
+     * @return The current Unix timestamp in seconds
      */
     function nowSeconds() external view returns (uint64);
 
     /**
-     * @dev 获取详细的时间信息 - 任何人都可以调用
-     * @return currentMicroseconds 当前时间（微秒）
-     * @return currentSeconds 当前时间（秒）
-     * @return blockTimestamp 当前区块时间戳
+     * @dev Gets detailed time information - callable by anyone
+     * @return currentMicroseconds The current timestamp in microseconds
+     * @return currentSeconds The current timestamp in seconds
+     * @return blockTimestamp The current block.timestamp (for comparison)
      */
     function getTimeInfo()
         external
@@ -50,9 +53,9 @@ interface ITimestamp {
         returns (uint64 currentMicroseconds, uint64 currentSeconds, uint256 blockTimestamp);
 
     /**
-     * @dev 验证时间戳是否大于当前时间戳
-     * @param timestamp 时间戳（微秒）
-     * @return 如果时间戳大于当前时间戳，则返回true
+     * @dev Verifies if the timestamp is greater than or equal to the current timestamp
+     * @param timestamp The timestamp to verify in microseconds
+     * @return Whether the timestamp is greater than or equal to current timestamp
      */
     function isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) external view returns (bool);
 }

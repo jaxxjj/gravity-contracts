@@ -3,12 +3,12 @@ pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
 import "@src/block/Block.sol";
-import "../mocks/ValidatorManagerMock.sol";
-import "../mocks/ValidatorPerformanceTrackerMock.sol";
-import "../mocks/TimestampMock.sol";
-import { IBlock } from "@src/interfaces/IBlock.sol";
-import "../mocks/EpochManagerMock.sol";
-import "../TestConstants.sol";
+import "@test/mocks/ValidatorManagerMock.sol";
+import "@test/mocks/ValidatorPerformanceTrackerMock.sol";
+import "@test/mocks/TimestampMock.sol";
+import {IBlock} from "@src/interfaces/IBlock.sol";
+import "@test/mocks/EpochManagerMock.sol";
+import "@test/utils/TestConstants.sol";
 
 contract BlockTest is Test, TestConstants {
     Block blockContract;

@@ -3,12 +3,12 @@ pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
 import "@src/epoch/EpochManager.sol";
-import "../mocks/TimestampMock.sol";
-import "../mocks/ReconfigurableModuleMock.sol";
-import "../TestConstants.sol";
-import { IEpochManager } from "@src/interfaces/IEpochManager.sol";
+import "@test/mocks/TimestampMock.sol";
+import "@test/mocks/ReconfigurableModuleMock.sol";
+import "@test/utils/TestConstants.sol";
+import {IEpochManager} from "@src/interfaces/IEpochManager.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { System } from "@src/System.sol";
+import {System} from "@src/System.sol";
 
 contract EpochManagerTest is Test, TestConstants {
     EpochManager epochManager;

@@ -57,7 +57,10 @@ interface IEpochManager is IParamSubscriber {
      * @return lastTransitionTime Last epoch transition time
      * @return duration Epoch duration in microseconds
      */
-    function getCurrentEpochInfo() external view returns (uint256 epoch, uint256 lastTransitionTime, uint256 duration);
+    function getCurrentEpochInfo()
+        external
+        view
+        returns (uint256 epoch, uint256 lastTransitionTime, uint256 duration);
 
     /**
      * @dev Get remaining time until next epoch transition
