@@ -5,11 +5,11 @@ import "@src/interfaces/IParamSubscriber.sol";
 
 /**
  * @title IJWKManager
- * @dev 管理JSON Web Keys (JWKs)接口，支持OIDC提供者和联邦JWK
- * 基于Aptos JWK系统设计，适配Gravity链架构
+ * @dev Interface for managing JSON Web Keys (JWKs), supporting OIDC providers and federated JWKs
+ * Based on Aptos JWK system design, adapted for Gravity chain architecture
  */
 interface IJWKManager is IParamSubscriber {
-    // ======== 错误定义 ========
+    // ======== Error Definitions ========
     error JWKManager__ParameterNotFound(string key);
     error InvalidOIDCProvider();
     error DuplicateProvider();
@@ -21,66 +21,66 @@ interface IJWKManager is IParamSubscriber {
     error UnknownPatchVariant();
     error NotAuthorized();
 
-    // ======== 结构体定义 ========
+    // ======== Struct Definitions ========
 
-    /// @dev OIDC提供者信息
+    /// @dev OIDC provider information
     struct OIDCProvider {
-        string name; // 提供者名称，如 "https://accounts.google.com"
-        string configUrl; // OpenID配置URL
-        bool active; // 是否激活
+        string name; // Provider name, e.g., "https://accounts.google.com"
+        string configUrl; // OpenID configuration URL
+        bool active; // Whether the provider is active
     }
 
-    /// @dev RSA JWK结构
+    /// @dev RSA JWK structure
     struct RSA_JWK {
         string kid; // Key ID
         string kty; // Key Type (RSA)
-        string alg; // Algorithm (RS256等)
+        string alg; // Algorithm (RS256, etc.)
         string e; // Public exponent
         string n; // Modulus
     }
 
-    /// @dev 不支持的JWK类型
+    /// @dev Unsupported JWK type
     struct UnsupportedJWK {
         bytes id;
         bytes payload;
     }
 
-    /// @dev JWK联合体
+    /// @dev JWK union type
     struct JWK {
         uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK
-        bytes data; // 编码后的JWK数据
+        bytes data; // Encoded JWK data
     }
 
-    /// @dev 提供者的JWK集合
+    /// @dev Provider's JWK collection
     struct ProviderJWKs {
-        string issuer; // 发行者
-        uint64 version; // 版本号
-        JWK[] jwks; // JWK数组，按kid排序
+        string issuer; // Issuer
+        uint64 version; // Version number
+        JWK[] jwks; // JWK array, sorted by kid
     }
 
-    /// @dev 所有提供者的JWK集合
+    /// @dev All providers' JWK collection
     struct AllProvidersJWKs {
-        ProviderJWKs[] entries; // 按issuer排序的提供者数组
+        ProviderJWKs[] entries; // Provider array sorted by issuer
     }
 
-    /// @dev 补丁操作类型
+    /// @dev Patch operation types
     enum PatchType {
-        RemoveAll, // 移除所有
-        RemoveIssuer, // 移除特定发行者
-        RemoveJWK, // 移除特定JWK
-        UpsertJWK // 插入或更新JWK
+        RemoveAll, // Remove all
+        RemoveIssuer, // Remove specific issuer
+        RemoveJWK, // Remove specific JWK
+        UpsertJWK // Insert or update JWK
 
     }
 
-    /// @dev 补丁操作
+    /// @dev Patch operation
     struct Patch {
         PatchType patchType;
-        string issuer; // 对于RemoveIssuer, RemoveJWK, UpsertJWK
-        bytes jwkId; // 对于RemoveJWK
-        JWK jwk; // 对于UpsertJWK
+        string issuer; // For RemoveIssuer, RemoveJWK, UpsertJWK
+        bytes jwkId; // For RemoveJWK
+        JWK jwk; // For UpsertJWK
     }
 
-    // ======== 事件定义 ========
+    // ======== Event Definitions ========
     event OIDCProviderAdded(string indexed name, string configUrl);
     event OIDCProviderRemoved(string indexed name);
     event OIDCProviderUpdated(string indexed name, string newConfigUrl);
@@ -90,60 +90,76 @@ interface IJWKManager is IParamSubscriber {
     event FederatedJWKsUpdated(address indexed dapp, string indexed issuer);
     event ConfigParamUpdated(string indexed key, uint256 oldValue, uint256 newValue);
 
-    // ======== 函数声明 ========
+    // ======== Function Declarations ========
 
     /**
-     * @dev 初始化函数
+     * @dev Initializes the JWKManager contract
+     * Sets default configuration parameters for JWT validation
      */
     function initialize() external;
 
     /**
-     * @dev 添加或更新OIDC提供者
+     * @dev Adds or updates an OIDC provider
+     * @param name The provider name (issuer URL)
+     * @param configUrl The OpenID configuration URL
      */
     function upsertOIDCProvider(string calldata name, string calldata configUrl) external;
 
     /**
-     * @dev 移除OIDC提供者
+     * @dev Removes an OIDC provider by marking it as inactive
+     * @param name The provider name to remove
      */
     function removeOIDCProvider(
         string calldata name
     ) external;
 
     /**
-     * @dev 获取所有活跃的OIDC提供者
+     * @dev Returns all active OIDC providers
+     * @return Array of active OIDCProvider structs
      */
     function getActiveProviders() external view returns (OIDCProvider[] memory);
 
     /**
-     * @dev 更新观察到的JWKs（仅由共识层调用）
+     * @dev Updates observed JWKs (called by consensus layer only)
+     * Corresponds to Aptos's upsert_into_observed_jwks function
+     * @param providerJWKsArray Array of provider JWK sets to update
      */
     function upsertObservedJWKs(
         ProviderJWKs[] calldata providerJWKsArray
     ) external;
 
     /**
-     * @dev 从观察到的JWKs中移除发行者
+     * @dev Removes an issuer from observed JWKs (governance only)
+     * @param issuer The issuer to remove
      */
     function removeIssuerFromObservedJWKs(
         string calldata issuer
     ) external;
 
     /**
-     * @dev 设置补丁
+     * @dev Sets patches for JWK modifications (governance only)
+     * @param newPatches Array of patches to apply
      */
     function setPatches(
         Patch[] calldata newPatches
     ) external;
 
     /**
-     * @dev 添加单个补丁
+     * @dev Adds a single patch to the existing patch set
+     * @param patch The patch to add
      */
     function addPatch(
         Patch calldata patch
     ) external;
 
     /**
-     * @dev 更新联邦JWK集合（dApp调用）
+     * @dev Updates federated JWK set for a dApp
+     * Corresponds to Aptos's update_federated_jwk_set function
+     * @param issuer The issuer for the JWK set
+     * @param kidArray Array of key IDs
+     * @param algArray Array of algorithms
+     * @param eArray Array of public exponents
+     * @param nArray Array of moduli
      */
     function updateFederatedJWKSet(
         string calldata issuer,
@@ -154,19 +170,27 @@ interface IJWKManager is IParamSubscriber {
     ) external;
 
     /**
-     * @dev 应用补丁到联邦JWKs
+     * @dev Applies patches to federated JWKs for the calling dApp
+     * @param patchArray Array of patches to apply
      */
     function patchFederatedJWKs(
         Patch[] calldata patchArray
     ) external;
 
     /**
-     * @dev 获取补丁后的JWK
+     * @dev Gets a patched JWK by issuer and key ID
+     * @param issuer The issuer of the JWK
+     * @param jwkId The key ID to look up
+     * @return The JWK struct
      */
     function getPatchedJWK(string calldata issuer, bytes calldata jwkId) external view returns (JWK memory);
 
     /**
-     * @dev 尝试获取补丁后的JWK（不会revert）
+     * @dev Attempts to get a patched JWK without reverting on failure
+     * @param issuer The issuer of the JWK
+     * @param jwkId The key ID to look up
+     * @return found Whether the JWK was found
+     * @return jwk The JWK struct (empty if not found)
      */
     function tryGetPatchedJWK(
         string calldata issuer,
@@ -174,7 +198,11 @@ interface IJWKManager is IParamSubscriber {
     ) external view returns (bool found, JWK memory jwk);
 
     /**
-     * @dev 获取联邦JWK
+     * @dev Gets a federated JWK for a specific dApp
+     * @param dapp The dApp address
+     * @param issuer The issuer of the JWK
+     * @param jwkId The key ID to look up
+     * @return The JWK struct
      */
     function getFederatedJWK(
         address dapp,
@@ -183,50 +211,102 @@ interface IJWKManager is IParamSubscriber {
     ) external view returns (JWK memory);
 
     /**
-     * @dev 获取观察到的JWKs
+     * @dev Returns all observed JWKs
+     * @return The complete observed JWK set
      */
     function getObservedJWKs() external view returns (AllProvidersJWKs memory);
 
     /**
-     * @dev 获取补丁后的JWKs
+     * @dev Returns all patched JWKs (observed + patches applied)
+     * @return The complete patched JWK set
      */
     function getPatchedJWKs() external view returns (AllProvidersJWKs memory);
 
     /**
-     * @dev 获取联邦JWKs
+     * @dev Returns federated JWKs for a specific dApp
+     * @param dapp The dApp address
+     * @return The dApp's federated JWK set
      */
     function getFederatedJWKs(
         address dapp
     ) external view returns (AllProvidersJWKs memory);
 
     /**
-     * @dev 获取所有补丁
+     * @dev Returns all current patches
+     * @return Array of all patches
      */
     function getPatches() external view returns (Patch[] memory);
 
     /**
-     * @dev 获取常量值
+     * @dev Maximum size in bytes for federated JWKs
+     * @return The maximum size limit
      */
     function MAX_FEDERATED_JWKS_SIZE_BYTES() external view returns (uint256);
+
+    /**
+     * @dev Maximum number of providers per request
+     * @return The maximum provider limit
+     */
     function MAX_PROVIDERS_PER_REQUEST() external view returns (uint256);
+
+    /**
+     * @dev Maximum number of JWKs per provider
+     * @return The maximum JWK limit per provider
+     */
     function MAX_JWKS_PER_PROVIDER() external view returns (uint256);
 
     /**
-     * @dev 获取配置参数
+     * @dev Maximum number of signatures per transaction
+     * @return The current limit
      */
     function maxSignaturesPerTxn() external view returns (uint256);
+
+    /**
+     * @dev Maximum expiration horizon in seconds
+     * @return The current limit
+     */
     function maxExpHorizonSecs() external view returns (uint256);
+
+    /**
+     * @dev Maximum committed EPK bytes
+     * @return The current limit
+     */
     function maxCommittedEpkBytes() external view returns (uint256);
+
+    /**
+     * @dev Maximum issuer value bytes
+     * @return The current limit
+     */
     function maxIssValBytes() external view returns (uint256);
+
+    /**
+     * @dev Maximum extra field bytes
+     * @return The current limit
+     */
     function maxExtraFieldBytes() external view returns (uint256);
+
+    /**
+     * @dev Maximum JWT header base64 bytes
+     * @return The current limit
+     */
     function maxJwtHeaderB64Bytes() external view returns (uint256);
 
     /**
-     * @dev 获取提供者信息
+     * @dev Gets supported provider information by index
+     * @param index The provider index
+     * @return name The provider name
+     * @return configUrl The configuration URL
+     * @return active Whether the provider is active
      */
     function supportedProviders(
         uint256 index
     ) external view returns (string memory name, string memory configUrl, bool active);
+
+    /**
+     * @dev Gets the index of a provider by name
+     * @param name The provider name
+     * @return The provider index (0 if not found)
+     */
     function providerIndex(
         string calldata name
     ) external view returns (uint256);

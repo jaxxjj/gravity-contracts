@@ -49,11 +49,8 @@ contract GravityGovernor is
     uint48 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint48(1 days / BLOCK_INTERVAL);
 
     /*----------------- errors -----------------*/
-    // @notice signature: 0x584a7938
     error NotWhitelisted();
-    // @notice signature: 0x11b6707f
     error TotalSupplyNotEnough();
-    // @notice signature: 0x867f3ee5
     error OneLiveProposalPerProposer();
 
     /*----------------- storage -----------------*/
