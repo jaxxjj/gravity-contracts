@@ -5,11 +5,11 @@ import "@src/interfaces/IParamSubscriber.sol";
 
 /**
  * @title IKeylessAccount
- * @dev 管理无密钥账户系统的接口，使用BN254曲线的零知识证明验证
- * 基于Aptos keyless_account模块设计，适配以太坊架构
+ * @dev Interface for managing keyless account system using BN254 curve zero-knowledge proof verification
+ * Based on Aptos keyless_account module design, adapted for Ethereum architecture
  */
 interface IKeylessAccount is IParamSubscriber {
-    // ======== 错误定义 ========
+    // ======== Error Definitions ========
     error KeylessAccount__ParameterNotFound(string key);
     error InvalidTrainingWheelsPK();
     error InvalidProof();
@@ -20,33 +20,33 @@ interface IKeylessAccount is IParamSubscriber {
     error ExceededMaxSignaturesPerTxn();
     error ExceededMaxExpHorizon();
 
-    // ======== 结构体定义 ========
+    // ======== Struct Definitions ========
     /**
-     * @dev 系统配置参数
+     * @dev System configuration parameters
      */
     struct Configuration {
-        /// @dev 覆盖`aud`值，用于恢复服务
+        /// @dev Override `aud` values for recovery service
         string[] override_aud_vals;
-        /// @dev 每个交易最多支持的无密钥签名数量
+        /// @dev Maximum number of keyless signatures supported per transaction
         uint16 max_signatures_per_txn;
-        /// @dev JWT发布时间后EPK过期可设置的最大秒数
+        /// @dev Maximum seconds EPK can be set to expire after JWT issuance time
         uint64 max_exp_horizon_secs;
-        /// @dev 训练轮公钥，如果启用
+        /// @dev Training wheels public key, if enabled
         bytes training_wheels_pubkey;
-        /// @dev 电路支持的最大临时公钥长度（93字节）
+        /// @dev Maximum ephemeral public key length supported by circuit (93 bytes)
         uint16 max_commited_epk_bytes;
-        /// @dev 电路支持的JWT的`iss`字段值的最大长度
+        /// @dev Maximum length of JWT `iss` field value supported by circuit
         uint16 max_iss_val_bytes;
-        /// @dev 电路支持的JWT字段名和值的最大长度
+        /// @dev Maximum length of JWT field names and values supported by circuit
         uint16 max_extra_field_bytes;
-        /// @dev 电路支持的base64url编码的JWT头的最大长度
+        /// @dev Maximum length of base64url-encoded JWT header supported by circuit
         uint32 max_jwt_header_b64_bytes;
-        /// @dev 验证器合约地址
+        /// @dev Verifier contract address
         address verifier_address;
     }
 
     /**
-     * @dev 无密钥账户信息
+     * @dev Keyless account information
      */
     struct KeylessAccountInfo {
         address account;
@@ -56,7 +56,7 @@ interface IKeylessAccount is IParamSubscriber {
         uint256 creationTimestamp;
     }
 
-    // ======== 事件定义 ========
+    // ======== Event Definitions ========
     event KeylessAccountCreated(address indexed account, string indexed issuer, bytes32 jwkHash);
     event KeylessAccountRecovered(address indexed account, string indexed issuer, bytes32 newJwkHash);
     event VerifierContractUpdated(address newVerifier);
@@ -65,18 +65,18 @@ interface IKeylessAccount is IParamSubscriber {
     event OverrideAudRemoved(string value);
     event ConfigParamUpdated(string indexed key, uint256 oldValue, uint256 newValue);
 
-    // ======== 函数声明 ========
+    // ======== Function Declarations ========
     /**
-     * @dev 初始化函数
+     * @dev Initializes the KeylessAccount contract
      */
     function initialize() external;
 
     /**
-     * @dev 创建无密钥账户
-     * @param proof Groth16证明（未压缩格式，按EIP-197标准）
-     * @param jwkHash JWK哈希
-     * @param issuer JWT发行者（如"https://accounts.google.com"）
-     * @param publicInputs 公共输入
+     * @dev Create keyless account
+     * @param proof Groth16 proof (uncompressed, EIP-197 standard)
+     * @param jwkHash JWK hash
+     * @param issuer JWT issuer (e.g., "https://accounts.google.com")
+     * @param publicInputs Public inputs for proof verification
      */
     function createKeylessAccount(
         uint256[8] calldata proof,
@@ -86,7 +86,11 @@ interface IKeylessAccount is IParamSubscriber {
     ) external returns (address);
 
     /**
-     * @dev 创建无密钥账户（使用压缩格式的证明）
+     * @dev Create keyless account using compressed proof format
+     * @param compressedProof Compressed Groth16 proof
+     * @param jwkHash JWK hash
+     * @param issuer JWT issuer
+     * @param publicInputs Public inputs for proof verification
      */
     function createKeylessAccountCompressed(
         uint256[4] calldata compressedProof,
@@ -96,7 +100,11 @@ interface IKeylessAccount is IParamSubscriber {
     ) external returns (address);
 
     /**
-     * @dev 恢复无密钥账户（更改jwk）
+     * @dev Recover keyless account (change JWK)
+     * @param proof Groth16 proof (uncompressed)
+     * @param accountAddress Account address to recover
+     * @param newJwkHash New JWK hash
+     * @param publicInputs Public inputs for proof verification
      */
     function recoverKeylessAccount(
         uint256[8] calldata proof,
@@ -106,7 +114,11 @@ interface IKeylessAccount is IParamSubscriber {
     ) external;
 
     /**
-     * @dev 恢复无密钥账户（使用压缩格式的证明）
+     * @dev Recover keyless account using compressed proof format
+     * @param compressedProof Compressed Groth16 proof
+     * @param accountAddress Account address to recover
+     * @param newJwkHash New JWK hash
+     * @param publicInputs Public inputs for proof verification
      */
     function recoverKeylessAccountCompressed(
         uint256[4] calldata compressedProof,
@@ -116,14 +128,15 @@ interface IKeylessAccount is IParamSubscriber {
     ) external;
 
     /**
-     * @dev 获取账户信息
+     * @dev Get account information
+     * @param account Account address
+     * @return Account information struct
      */
-    function getAccountInfo(
-        address account
-    ) external view returns (KeylessAccountInfo memory);
+    function getAccountInfo(address account) external view returns (KeylessAccountInfo memory);
 
     /**
-     * @dev 获取当前配置
+     * @dev Get current configuration
+     * @return Current system configuration
      */
     function getConfiguration() external view returns (Configuration memory);
 }

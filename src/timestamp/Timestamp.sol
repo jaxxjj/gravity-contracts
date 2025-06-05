@@ -3,39 +3,39 @@ pragma solidity 0.8.30;
 
 import "@src/System.sol";
 import "@src/interfaces/ITimestamp.sol";
+
 /**
  * @title Timestamp
- * @dev 复刻Aptos timestamp.move模块，移除了timeStarted相关功能
+ * @dev Replicates Aptos timestamp.move module, with timeStarted functionality removed
  */
-
 contract Timestamp is System, ITimestamp {
     /// @dev Conversion factor between seconds and microseconds
     uint64 public constant MICRO_CONVERSION_FACTOR = 1_000_000;
     uint64 public microseconds;
 
     /**
-     * @dev 通过共识更新全局时间，需要VM权限，在block prologue期间调用
-     * 完全对应Aptos的update_global_time函数
-     * @param proposer 提议者地址
-     * @param timestamp 新的时间戳（微秒）
+     * @dev Updates global time through consensus, requires VM permission, called during block prologue
+     * Corresponds exactly to Aptos's update_global_time function
+     * @param proposer Proposer address
+     * @param timestamp New timestamp in microseconds
      */
     function updateGlobalTime(address proposer, uint64 timestamp) public onlyBlock {
-        // 获取state里面存储的当前时间
+        // Get current time stored in state
         uint64 currentTime = microseconds;
 
         if (proposer == SYSTEM_CALLER) {
-            // NIL block，提议者为SYSTEM_CALLER，时间戳必须相等
+            // NIL block, proposer is SYSTEM_CALLER, timestamp must be equal
             if (currentTime != timestamp) {
                 revert TimestampMustEqual(timestamp, currentTime);
             }
             emit GlobalTimeUpdated(proposer, currentTime, timestamp, true);
         } else {
-            // 正常区块，时间必须前进
+            // Normal block, time must advance
             if (!_isGreaterThanOrEqualCurrentTimestamp(timestamp)) {
                 revert TimestampMustAdvance(timestamp, currentTime);
             }
 
-            // 更新全局时间
+            // Update global time
             uint64 oldTimestamp = microseconds;
             microseconds = timestamp;
 
@@ -44,23 +44,23 @@ contract Timestamp is System, ITimestamp {
     }
 
     /**
-     * @dev 获取当前时间（微秒）- 任何人都可以调用
-     * 对应Aptos的now_microseconds函数
+     * @dev Get current time in microseconds - callable by anyone
+     * Corresponds to Aptos's now_microseconds function
      */
     function nowMicroseconds() external view returns (uint64) {
         return microseconds;
     }
 
     /**
-     * @dev 获取当前时间（秒）- 任何人都可以调用
-     * 对应Aptos的now_seconds函数
+     * @dev Get current time in seconds - callable by anyone
+     * Corresponds to Aptos's now_seconds function
      */
     function nowSeconds() external view returns (uint64) {
         return microseconds / MICRO_CONVERSION_FACTOR;
     }
 
     /**
-     * @dev 获取详细的时间信息 - 任何人都可以调用
+     * @dev Get detailed time information - callable by anyone
      */
     function getTimeInfo()
         external
@@ -71,22 +71,18 @@ contract Timestamp is System, ITimestamp {
     }
 
     /**
-     * @dev 验证时间戳是否大于当前时间戳
-     * @param timestamp 时间戳 微秒
+     * @dev Verify if timestamp is greater than or equal to current timestamp
+     * @param timestamp Timestamp in microseconds
      */
-    function isGreaterThanOrEqualCurrentTimestamp(
-        uint64 timestamp
-    ) external view returns (bool) {
+    function isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) external view returns (bool) {
         return _isGreaterThanOrEqualCurrentTimestamp(timestamp);
     }
 
     /**
-     * @dev 验证时间戳是否大于当前时间戳
-     * @param timestamp 时间戳 微秒
+     * @dev Internal function to verify if timestamp is greater than or equal to current timestamp
+     * @param timestamp Timestamp in microseconds
      */
-    function _isGreaterThanOrEqualCurrentTimestamp(
-        uint64 timestamp
-    ) private view returns (bool) {
+    function _isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) private view returns (bool) {
         return timestamp >= microseconds;
     }
 }
