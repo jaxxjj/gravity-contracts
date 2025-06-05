@@ -76,7 +76,9 @@ library JWKUtils {
      * @dev Create "Remove Issuer" patch
      * @param issuer Issuer to remove
      */
-    function newPatchRemoveIssuer(string memory issuer) internal pure returns (IJWKManager.Patch memory) {
+    function newPatchRemoveIssuer(
+        string memory issuer
+    ) internal pure returns (IJWKManager.Patch memory) {
         return IJWKManager.Patch({
             patchType: IJWKManager.PatchType.RemoveIssuer,
             issuer: issuer,
@@ -121,7 +123,9 @@ library JWKUtils {
      * @param jwk JWK structure
      * @return JWK ID
      */
-    function getJWKId(IJWKManager.JWK memory jwk) internal pure returns (bytes memory) {
+    function getJWKId(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (bytes memory) {
         if (jwk.variant == 0) {
             // RSA_JWK
             IJWKManager.RSA_JWK memory rsaJWK = abi.decode(jwk.data, (IJWKManager.RSA_JWK));
@@ -140,7 +144,9 @@ library JWKUtils {
      * @param jwk JWK structure
      * @return RSA JWK structure
      */
-    function toRSAJWK(IJWKManager.JWK memory jwk) internal pure returns (IJWKManager.RSA_JWK memory) {
+    function toRSAJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (IJWKManager.RSA_JWK memory) {
         if (jwk.variant != 0) revert InvalidJWKType();
         return abi.decode(jwk.data, (IJWKManager.RSA_JWK));
     }
@@ -150,7 +156,9 @@ library JWKUtils {
      * @param jwk JWK structure
      * @return Unsupported JWK structure
      */
-    function toUnsupportedJWK(IJWKManager.JWK memory jwk) internal pure returns (IJWKManager.UnsupportedJWK memory) {
+    function toUnsupportedJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (IJWKManager.UnsupportedJWK memory) {
         if (jwk.variant != 1) revert InvalidJWKType();
         return abi.decode(jwk.data, (IJWKManager.UnsupportedJWK));
     }
@@ -160,7 +168,9 @@ library JWKUtils {
      * @param jwk JWK structure
      * @return true if RSA type
      */
-    function isRSAJWK(IJWKManager.JWK memory jwk) internal pure returns (bool) {
+    function isRSAJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (bool) {
         return jwk.variant == 0;
     }
 
@@ -169,7 +179,9 @@ library JWKUtils {
      * @param jwk JWK structure
      * @return true if unsupported type
      */
-    function isUnsupportedJWK(IJWKManager.JWK memory jwk) internal pure returns (bool) {
+    function isUnsupportedJWK(
+        IJWKManager.JWK memory jwk
+    ) internal pure returns (bool) {
         return jwk.variant == 1;
     }
 
@@ -180,7 +192,9 @@ library JWKUtils {
      * @param rsaJWK RSA JWK structure
      * @return true if validation passes
      */
-    function validateRSAJWK(IJWKManager.RSA_JWK memory rsaJWK) internal pure returns (bool) {
+    function validateRSAJWK(
+        IJWKManager.RSA_JWK memory rsaJWK
+    ) internal pure returns (bool) {
         // Check required fields
         if (bytes(rsaJWK.kid).length == 0) return false;
         if (bytes(rsaJWK.e).length == 0) return false;
@@ -197,7 +211,9 @@ library JWKUtils {
      * @param provider OIDC provider structure
      * @return true if validation passes
      */
-    function validateOIDCProvider(IJWKManager.OIDCProvider memory provider) internal pure returns (bool) {
+    function validateOIDCProvider(
+        IJWKManager.OIDCProvider memory provider
+    ) internal pure returns (bool) {
         if (bytes(provider.name).length == 0) return false;
         if (bytes(provider.configUrl).length == 0) return false;
 
@@ -260,7 +276,9 @@ library JWKUtils {
      * @param allJWKs AllProvidersJWKs structure
      * @return hash value
      */
-    function hashAllProvidersJWKs(IJWKManager.AllProvidersJWKs memory allJWKs) internal pure returns (bytes32) {
+    function hashAllProvidersJWKs(
+        IJWKManager.AllProvidersJWKs memory allJWKs
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(allJWKs));
     }
 
@@ -269,7 +287,9 @@ library JWKUtils {
      * @param providerJWKs ProviderJWKs structure
      * @return hash value
      */
-    function hashProviderJWKs(IJWKManager.ProviderJWKs memory providerJWKs) internal pure returns (bytes32) {
+    function hashProviderJWKs(
+        IJWKManager.ProviderJWKs memory providerJWKs
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encode(providerJWKs));
     }
 }
@@ -329,7 +349,9 @@ contract JWKManagerFactory {
      * @param issuers Issuers to remove
      * @return Patches array
      */
-    function createRemoveIssuerPatches(string[] memory issuers) external pure returns (IJWKManager.Patch[] memory) {
+    function createRemoveIssuerPatches(
+        string[] memory issuers
+    ) external pure returns (IJWKManager.Patch[] memory) {
         IJWKManager.Patch[] memory patches = new IJWKManager.Patch[](issuers.length);
         for (uint256 i = 0; i < issuers.length; i++) {
             patches[i] = JWKUtils.newPatchRemoveIssuer(issuers[i]);
@@ -367,7 +389,9 @@ contract JWKManagerFactory {
      * @param jwks JWK array
      * @return Validation results array
      */
-    function validateRSAJWKs(IJWKManager.JWK[] memory jwks) external pure returns (bool[] memory) {
+    function validateRSAJWKs(
+        IJWKManager.JWK[] memory jwks
+    ) external pure returns (bool[] memory) {
         bool[] memory results = new bool[](jwks.length);
         for (uint256 i = 0; i < jwks.length; i++) {
             if (jwks[i].isRSAJWK()) {
@@ -385,7 +409,9 @@ contract JWKManagerFactory {
      * @param jwks JWK array
      * @return JWK ID array
      */
-    function extractJWKIds(IJWKManager.JWK[] memory jwks) external pure returns (bytes[] memory) {
+    function extractJWKIds(
+        IJWKManager.JWK[] memory jwks
+    ) external pure returns (bytes[] memory) {
         bytes[] memory ids = new bytes[](jwks.length);
         for (uint256 i = 0; i < jwks.length; i++) {
             ids[i] = jwks[i].getJWKId();

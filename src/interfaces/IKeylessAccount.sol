@@ -132,7 +132,9 @@ interface IKeylessAccount is IParamSubscriber {
      * @param account Account address
      * @return Account information struct
      */
-    function getAccountInfo(address account) external view returns (KeylessAccountInfo memory);
+    function getAccountInfo(
+        address account
+    ) external view returns (KeylessAccountInfo memory);
 
     /**
      * @dev Get current configuration

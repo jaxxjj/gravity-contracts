@@ -74,7 +74,9 @@ contract Timestamp is System, ITimestamp {
      * @dev Verify if timestamp is greater than or equal to current timestamp
      * @param timestamp Timestamp in microseconds
      */
-    function isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) external view returns (bool) {
+    function isGreaterThanOrEqualCurrentTimestamp(
+        uint64 timestamp
+    ) external view returns (bool) {
         return _isGreaterThanOrEqualCurrentTimestamp(timestamp);
     }
 
@@ -82,7 +84,9 @@ contract Timestamp is System, ITimestamp {
      * @dev Internal function to verify if timestamp is greater than or equal to current timestamp
      * @param timestamp Timestamp in microseconds
      */
-    function _isGreaterThanOrEqualCurrentTimestamp(uint64 timestamp) private view returns (bool) {
+    function _isGreaterThanOrEqualCurrentTimestamp(
+        uint64 timestamp
+    ) private view returns (bool) {
         return timestamp >= microseconds;
     }
 }
