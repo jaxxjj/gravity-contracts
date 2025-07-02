@@ -36,7 +36,7 @@ contract Genesis is System {
         address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
-        uint64[] calldata votingPowers,
+        uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
@@ -72,7 +72,7 @@ contract Genesis is System {
         address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
-        uint64[] calldata votingPowers,
+        uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) internal {
         // Initialize StakeConfig

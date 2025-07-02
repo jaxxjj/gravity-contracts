@@ -36,7 +36,7 @@ interface IValidatorManager is IReconfigurableModule {
         bool registered;
         address stakeCreditAddress;
         ValidatorStatus status;
-        uint64 votingPower;
+        uint256 votingPower; // Changed from uint64 to uint256 to prevent overflow
         uint256 validatorIndex;
         uint256 lastEpochActive;
         uint256 updateTime; // Last update time
@@ -45,8 +45,8 @@ interface IValidatorManager is IReconfigurableModule {
 
     // ValidatorSetData structure
     struct ValidatorSetData {
-        uint128 totalVotingPower; // Total voting power
-        uint128 totalJoiningPower; // Total pending voting power
+        uint256 totalVotingPower; // Total voting power - Changed from uint128 to uint256
+        uint256 totalJoiningPower; // Total pending voting power - Changed from uint128 to uint256
     }
 
     // Validator registration parameters
@@ -76,7 +76,7 @@ interface IValidatorManager is IReconfigurableModule {
     event OperatorUpdated(address indexed validator, address indexed oldOperator, address indexed newOperator);
 
     /// Validator set management events (inspired by Aptos)
-    event ValidatorJoinRequested(address indexed validator, uint64 votingPower, uint64 epoch);
+    event ValidatorJoinRequested(address indexed validator, uint256 votingPower, uint64 epoch);
     event ValidatorLeaveRequested(address indexed validator, uint64 epoch);
     event ValidatorStatusChanged(address indexed validator, uint8 oldStatus, uint8 newStatus, uint64 epoch);
 
@@ -90,7 +90,7 @@ interface IValidatorManager is IReconfigurableModule {
         uint256 activeCount,
         uint256 pendingActiveCount,
         uint256 pendingInactiveCount,
-        uint128 totalVotingPower
+        uint256 totalVotingPower
     );
 
     // Registration related errors
@@ -119,7 +119,7 @@ interface IValidatorManager is IReconfigurableModule {
     error ValidatorNotInactive(address validator);
     error ValidatorNotActive(address validator);
     error ValidatorSetReachedMax(uint256 current, uint256 max);
-    error InvalidVotingPower(uint64 votingPower);
+    error InvalidVotingPower(uint256 votingPower);
     error LastValidatorCannotLeave();
     error VotingPowerIncreaseExceedsLimit();
     error ValidatorSetChangeDisabled();
@@ -132,7 +132,7 @@ interface IValidatorManager is IReconfigurableModule {
         address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
-        uint64[] calldata votingPowers,
+        uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) external;
 

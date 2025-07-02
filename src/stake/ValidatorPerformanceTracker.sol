@@ -57,24 +57,25 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         uint256 epoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 
         uint256 validatorCount = currentValidators.length;
+        
+        // Define sentinel value for "no proposer" case
+        uint64 NO_PROPOSER = type(uint64).max;
 
         // Handle successful proposer
-        if (proposerIndex != type(uint256).max) {
-            if (proposerIndex < validatorCount) {
-                // Increment successful proposals
-                currentValidators[proposerIndex].successfulProposals += 1;
+        if (proposerIndex != NO_PROPOSER && proposerIndex < validatorCount) {
+            // Increment successful proposals
+            currentValidators[proposerIndex].successfulProposals += 1;
 
-                // Emit events
-                emit ProposalResult(activeValidators[proposerIndex], proposerIndex, true, epoch);
+            // Emit events
+            emit ProposalResult(activeValidators[proposerIndex], proposerIndex, true, epoch);
 
-                emit PerformanceUpdated(
-                    activeValidators[proposerIndex],
-                    proposerIndex,
-                    currentValidators[proposerIndex].successfulProposals,
-                    currentValidators[proposerIndex].failedProposals,
-                    epoch
-                );
-            }
+            emit PerformanceUpdated(
+                activeValidators[proposerIndex],
+                proposerIndex,
+                currentValidators[proposerIndex].successfulProposals,
+                currentValidators[proposerIndex].failedProposals,
+                epoch
+            );
         }
 
         // Handle failed proposers

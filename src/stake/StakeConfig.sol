@@ -52,7 +52,7 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
         minDelegationStake = 0.1 ether;
         minDelegationChange = 0.1 ether;
         maxValidatorCount = 100;
-        recurringLockupDuration = 14 days;
+        recurringLockupDuration = 2 hours; // Aligned with epoch interval for Aptos model
         allowValidatorSetChange = true;
         redelegateFeeRate = 2; // 0.02%
 

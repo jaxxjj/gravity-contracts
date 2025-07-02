@@ -24,7 +24,7 @@ contract GenesisTest is Test, TestConstants {
     address[] public validatorAddresses;
     address[] public consensusAddresses;
     address payable[] public feeAddresses;
-    uint64[] public votingPowers;
+    uint256[] public votingPowers;
     bytes[] public voteAddresses;
 
     function setUp() public {
@@ -43,7 +43,7 @@ contract GenesisTest is Test, TestConstants {
         validatorAddresses = new address[](3);
         consensusAddresses = new address[](3);
         feeAddresses = new address payable[](3);
-        votingPowers = new uint64[](3);
+        votingPowers = new uint256[](3);
         voteAddresses = new bytes[](3);
 
         validatorAddresses[0] = address(0x1111);
@@ -165,7 +165,7 @@ contract GenesisTest is Test, TestConstants {
         address[] memory emptyValidators = new address[](0);
         address[] memory emptyConsensus = new address[](0);
         address payable[] memory emptyFees = new address payable[](0);
-        uint64[] memory emptyPowers = new uint64[](0);
+        uint256[] memory emptyPowers = new uint256[](0);
         bytes[] memory emptyVotes = new bytes[](0);
 
         // Act & Assert
@@ -179,7 +179,7 @@ contract GenesisTest is Test, TestConstants {
         address[] memory singleValidator = new address[](1);
         address[] memory singleConsensus = new address[](1);
         address payable[] memory singleFee = new address payable[](1);
-        uint64[] memory singlePower = new uint64[](1);
+        uint256[] memory singlePower = new uint256[](1);
         bytes[] memory singleVote = new bytes[](1);
 
         singleValidator[0] = address(0x1111);
@@ -202,14 +202,14 @@ contract GenesisTest is Test, TestConstants {
         address[] memory largeValidatorAddresses = new address[](validatorCount);
         address[] memory largeConsensusAddresses = new address[](validatorCount);
         address payable[] memory largeFeeAddresses = new address payable[](validatorCount);
-        uint64[] memory largeVotingPowers = new uint64[](validatorCount);
+        uint256[] memory largeVotingPowers = new uint256[](validatorCount);
         bytes[] memory largeVoteAddresses = new bytes[](validatorCount);
 
         for (uint256 i = 0; i < validatorCount; i++) {
             largeValidatorAddresses[i] = address(uint160(0x1000 + i));
             largeConsensusAddresses[i] = address(uint160(0x2000 + i));
             largeFeeAddresses[i] = payable(address(uint160(0x3000 + i)));
-            largeVotingPowers[i] = uint64(1000 + i);
+            largeVotingPowers[i] = uint256(1000 + i);
             largeVoteAddresses[i] = abi.encodePacked("vote", i);
         }
 
@@ -227,9 +227,9 @@ contract GenesisTest is Test, TestConstants {
 
     function test_initialize_maxVotingPower_shouldWork() public {
         // Arrange - Set maximum voting power
-        votingPowers[0] = type(uint64).max;
-        votingPowers[1] = type(uint64).max - 1;
-        votingPowers[2] = type(uint64).max - 2;
+        votingPowers[0] = type(uint256).max;
+        votingPowers[1] = type(uint256).max - 1;
+        votingPowers[2] = type(uint256).max - 2;
 
         // Act
         vm.prank(SYSTEM_CALLER);
@@ -319,7 +319,7 @@ contract GenesisTest is Test, TestConstants {
         address[] memory realisticValidators = new address[](5);
         address[] memory realisticConsensus = new address[](5);
         address payable[] memory realisticFees = new address payable[](5);
-        uint64[] memory realisticPowers = new uint64[](5);
+        uint256[] memory realisticPowers = new uint256[](5);
         bytes[] memory realisticVotes = new bytes[](5);
 
         // addresses and powers
@@ -337,7 +337,7 @@ contract GenesisTest is Test, TestConstants {
 
         for (uint256 i = 0; i < 5; i++) {
             realisticFees[i] = payable(address(uint160(0x7000 + i)));
-            realisticPowers[i] = uint64(10000000 + i * 1000000); // 10M, 11M, 12M, etc.
+            realisticPowers[i] = uint256(10000000 + i * 1000000); // 10M, 11M, 12M, etc.
             realisticVotes[i] = abi.encodePacked("validator_", i, "_vote_address");
         }
 

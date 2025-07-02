@@ -112,7 +112,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
-        uint64[] calldata votingPowers,
+        uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) external onlyGenesis {
         if (initialized) revert AlreadyInitialized();
@@ -132,7 +132,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             address validator = validatorAddresses[i];
             address consensusAddress = consensusAddresses[i];
             address payable feeAddress = feeAddresses[i];
-            uint64 votingPower = votingPowers[i];
+            uint256 votingPower = votingPowers[i];
             bytes memory voteAddress = voteAddresses[i];
 
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
@@ -351,7 +351,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // get current stake and check requirements
-        uint64 votingPower = uint64(_getValidatorStake(validator));
+        uint256 votingPower = _getValidatorStake(validator);
         uint256 minStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
         uint256 maxStake = IStakeConfig(STAKE_CONFIG_ADDR).maximumStake();
 
@@ -406,7 +406,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         if (currentStatus == uint8(ValidatorStatus.PENDING_ACTIVE)) {
             // use current actual stake to update totalJoiningPower
-            uint64 currentVotingPower = uint64(_getValidatorStake(validator));
+            uint256 currentVotingPower = _getValidatorStake(validator);
             validatorSetData.totalJoiningPower -= currentVotingPower;
 
             // other processing logic remains unchanged
@@ -449,7 +449,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /// @inheritdoc IValidatorManager
     function onNewEpoch() external onlyEpochManager {
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
-        uint64 minStakeRequired = uint64(IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake());
+        uint256 minStakeRequired = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
 
         // 1. process all StakeCredit status transitions (make pending_active become active)
         _processAllStakeCreditsNewEpoch();
@@ -684,8 +684,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 重新计算验证者集合
      */
-    function _recalculateValidatorSet(uint64 minStakeRequired, uint64 currentEpoch) internal {
-        uint128 newTotalVotingPower = 0;
+    function _recalculateValidatorSet(uint256 minStakeRequired, uint64 currentEpoch) internal {
+        uint256 newTotalVotingPower = 0;
         address[] memory currentActive = activeValidators.values();
 
         for (uint256 i = 0; i < currentActive.length; i++) {
@@ -693,7 +693,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             ValidatorInfo storage info = validatorInfos[validator];
 
             // update voting power
-            uint64 currentStake = uint64(_getValidatorStake(validator));
+            uint256 currentStake = _getValidatorStake(validator);
 
             if (currentStake >= minStakeRequired) {
                 info.votingPower = currentStake;

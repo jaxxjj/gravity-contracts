@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 import "@openzeppelin-upgrades/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin-upgrades/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
 import "@src/interfaces/IStakeConfig.sol";
 import "@src/System.sol";
 import "@src/interfaces/IValidatorManager.sol";
@@ -13,12 +12,11 @@ import "@src/interfaces/ITimestamp.sol";
 
 /**
  * @title StakeCredit
- * @dev Implements a shares-based staking mechanism with BSC-style unlock mechanism
+ * @dev Implements a shares-based staking mechanism with Aptos-style epoch transitions
  * Layer 1: State pools (active, inactive, pendingActive, pendingInactive)
- * Uses Pull model for withdrawals with unbonding period
+ * Uses epoch-based state transitions where pendingInactive becomes claimable after epoch
  */
 contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IStakeCredit {
-    using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
@@ -28,18 +26,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     uint256 public pendingActive;
     uint256 public pendingInactive;
 
-    // Unlock request tracking (BSC style)
-    struct UnlockRequest {
-        uint256 amount; // Amount to unlock (not shares)
-        uint256 unlockTime; // When it becomes claimable
-    }
-
-    // Hash of unlock request => UnlockRequest
-    mapping(bytes32 => UnlockRequest) private _unlockRequests;
-    // User address => unlock request queue (hash of requests)
-    mapping(address => DoubleEndedQueue.Bytes32Deque) private _unlockRequestsQueue;
-    // User address => personal unlock sequence
-    mapping(address => uint256) private _unlockSequence;
+    // Removed UnlockRequest mechanism - using pure Aptos model
 
     // Validator information
     address public validator;
@@ -199,19 +186,8 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             pendingActive -= fromPendingActive;
         }
 
-        // Move to pending_inactive state
+        // Move to pending_inactive state (Aptos model)
         pendingInactive += gAmount;
-
-        // Create unlock request (BSC style)
-        uint256 unlockTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds() + _getUnbondPeriod();
-        bytes32 requestHash = keccak256(abi.encodePacked(delegator, _unlockSequence[delegator]++));
-
-        // Check for hash collision (should not happen in normal cases)
-        if (_unlockRequests[requestHash].amount != 0) revert StakeCredit__RequestExists();
-
-        _unlockRequests[requestHash] = UnlockRequest({ amount: gAmount, unlockTime: unlockTime });
-
-        _unlockRequestsQueue[delegator].pushBack(requestHash);
 
         emit StakeUnlocked(delegator, shares, gAmount);
         return gAmount;
@@ -220,45 +196,36 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /// @inheritdoc IStakeCredit
     function claim(
         address payable delegator
-    ) external onlyDelegationOrValidatorManager nonReentrant returns (uint256 totalClaimed) {
-        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
-
-        if (queue.length() == 0) revert StakeCredit__NoUnlockRequest();
-
-        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-
-        // Process all claimable requests from the front of the queue
-        while (queue.length() > 0) {
-            bytes32 requestHash = queue.front();
-            UnlockRequest memory request = _unlockRequests[requestHash];
-
-            // Check if request is claimable
-            if (currentTime < request.unlockTime) {
-                break; // Requests are in chronological order, so we can stop here
-            }
-
-            // Check if we have enough inactive funds
-            if (inactive < request.amount) {
-                break; // Not enough funds available
-            }
-
-            // Remove from queue
-            queue.popFront();
-            delete _unlockRequests[requestHash];
-
-            // Update state
-            inactive -= request.amount;
-            totalClaimed += request.amount;
-        }
-
-        // Transfer all claimed amount at once
-        if (totalClaimed == 0) revert StakeCredit__NoClaimableRequest();
-
-        (bool success,) = delegator.call{ value: totalClaimed }("");
+    ) external onlyDelegationOrValidatorManager nonReentrant returns (uint256 amount) {
+        // In Aptos model, users can claim their inactive funds after epoch transition
+        uint256 userPooledG = getPooledGByDelegator(delegator);
+        
+        // Calculate claimable amount from inactive pool
+        if (userPooledG == 0) revert StakeCredit__NoClaimableRequest();
+        
+        // Check total pooled to get proportional share
+        uint256 totalPooled = getTotalPooledG();
+        if (totalPooled == 0) revert ZeroTotalPooledTokens();
+        
+        // Calculate user's share of inactive pool
+        amount = (inactive * userPooledG) / totalPooled;
+        
+        if (amount == 0) revert StakeCredit__NoClaimableRequest();
+        if (inactive < amount) revert InsufficientBalance();
+        
+        // Update state
+        inactive -= amount;
+        
+        // Burn proportional shares
+        uint256 sharesToBurn = (balanceOf(delegator) * amount) / userPooledG;
+        _burn(delegator, sharesToBurn);
+        
+        // Transfer funds
+        (bool success,) = delegator.call{ value: amount }("");
         if (!success) revert TransferFailed();
 
-        emit StakeWithdrawn(delegator, totalClaimed);
-        return totalClaimed;
+        emit StakeWithdrawn(delegator, amount);
+        return amount;
     }
 
     /// @inheritdoc IStakeCredit
@@ -304,46 +271,29 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         if (shares == 0) revert ZeroShares();
         if (pendingInactive == 0) revert NoWithdrawableAmount();
 
-        // For reactivation, we need to cancel pending unlock requests
-        // This is a simplified implementation - in production you might want more sophisticated logic
-        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
-        uint256 totalReactivated = 0;
-        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-
-        // Find and cancel unlock requests that haven't been moved to distribution pool yet
-        while (queue.length() > 0) {
-            bytes32 requestHash = queue.front();
-            UnlockRequest memory request = _unlockRequests[requestHash];
-
-            // Check if request is claimable
-            if (currentTime < request.unlockTime) {
-                break; // Requests are in chronological order, so we can stop here
-            }
-
-            // Remove from queue
-            queue.popFront();
-            delete _unlockRequests[requestHash];
-
-            // Move from pendingInactive back to active
-            if (pendingInactive >= request.amount) {
-                pendingInactive -= request.amount;
-                active += request.amount;
-                totalReactivated += request.amount;
-            } else {
-                revert InsufficientBalance();
-            }
+        // In Aptos model, we can reactivate a portion of pendingInactive stake
+        // Calculate proportional amount based on user's share of pendingInactive
+        uint256 userPooledG = getPooledGByDelegator(delegator);
+        if (userPooledG == 0) revert NoWithdrawableAmount();
+        
+        // Calculate user's share of pendingInactive
+        uint256 totalPooled = getTotalPooledG();
+        uint256 userPendingInactive = (pendingInactive * userPooledG) / totalPooled;
+        
+        // Calculate amount to reactivate based on shares
+        gAmount = getPooledGByShares(shares);
+        if (gAmount > userPendingInactive) {
+            gAmount = userPendingInactive; // Cap at user's pendingInactive
         }
 
-        gAmount = totalReactivated;
+        // Move from pendingInactive back to active
+        pendingInactive -= gAmount;
+        active += gAmount;
 
-        // Mint shares back
-        if (gAmount > 0) {
-            uint256 sharesToMint = getSharesByPooledG(gAmount);
-            _mint(delegator, sharesToMint);
+        // Shares remain the same (no mint needed, just state change)
 
-            emit StakeReactivated(delegator, sharesToMint, gAmount);
-        }
-
+        emit StakeReactivated(delegator, shares, gAmount);
+        
         return gAmount;
     }
 
@@ -466,78 +416,22 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     }
 
     /**
-     * @dev Get user's claimable amount
+     * @dev Get user's claimable amount in Aptos model
+     * Returns proportional share of inactive pool
      */
     function getClaimableAmount(
         address delegator
-    ) external view returns (uint256 claimable) {
-        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[delegator];
-
-        if (queue.length() == 0) return 0;
-
-        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-        uint256 index = 0;
-        bytes32[] memory hashes = new bytes32[](queue.length());
-
-        // Get all request hashes from the queue
-        for (uint256 i = 0; i < queue.length(); i++) {
-            hashes[i] = queue.at(i);
-        }
-
-        // Process all claimable requests from the front of the queue
-        while (index < hashes.length) {
-            bytes32 requestHash = hashes[index];
-            UnlockRequest memory request = _unlockRequests[requestHash];
-
-            // Check if request is claimable
-            if (currentTime < request.unlockTime) {
-                break; // Requests are in chronological order, so we can stop here
-            }
-
-            claimable += request.amount;
-            index++;
-        }
-
-        return claimable;
-    }
-
-    /**
-     * @dev Get user's pending unlock amount
-     */
-    function getPendingUnlockAmount(
-        address delegator
     ) external view returns (uint256) {
-        return _unlockRequestsQueue[delegator].length();
-    }
-
-    /**
-     * @dev Process matured unlocks for a specific user
-     * In BSC-style implementation, this checks and processes unlock requests
-     * that have completed their unbonding period but haven't been claimed yet
-     */
-    function processUserUnlocks(
-        address user
-    ) external {
-        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[user];
-        uint256 currentTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
-
-        // Process all claimable requests from the front of the queue
-        while (queue.length() > 0) {
-            bytes32 requestHash = queue.front();
-            UnlockRequest memory request = _unlockRequests[requestHash];
-
-            // Check if request is claimable
-            if (currentTime < request.unlockTime) {
-                break; // Requests are in chronological order, so we can stop here
-            }
-
-            // Remove from queue
-            queue.popFront();
-            delete _unlockRequests[requestHash];
-
-            // Note: Funds stay in inactive pool until user claims them
-            // This is part of the BSC-style pull model
-        }
+        if (inactive == 0) return 0;
+        
+        uint256 userPooledG = getPooledGByDelegator(delegator);
+        if (userPooledG == 0) return 0;
+        
+        uint256 totalPooled = getTotalPooledG();
+        if (totalPooled == 0) return 0;
+        
+        // User's proportional share of inactive pool
+        return (inactive * userPooledG) / totalPooled;
     }
 
     /**
@@ -547,12 +441,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         return IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(validator);
     }
 
-    /**
-     * @dev Gets unbond period from StakeConfig
-     */
-    function _getUnbondPeriod() internal view returns (uint256) {
-        return IStakeConfig(STAKE_CONFIG_ADDR).recurringLockupDuration();
-    }
 
     // ERC20 overrides (disable transfers)
 
@@ -603,7 +491,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
             getTotalPooledG(),
             address(this).balance,
             totalSupply(),
-            _unlockRequestsQueue[msg.sender].length() > 0
+            pendingInactive > 0 // In Aptos model, check if there's any pendingInactive
         );
     }
 
@@ -622,19 +510,52 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         emit BeneficiaryUpdated(validator, oldBeneficiary, newBeneficiary);
     }
 
+    /**
+     * @dev Get pending unlock amount for a delegator
+     * Returns user's proportional share of pendingInactive pool
+     */
+    function getPendingUnlockAmount(
+        address delegator
+    ) external view returns (uint256) {
+        if (pendingInactive == 0) return 0;
+        
+        uint256 userPooledG = getPooledGByDelegator(delegator);
+        if (userPooledG == 0) return 0;
+        
+        uint256 totalPooled = getTotalPooledG();
+        if (totalPooled == 0) return 0;
+        
+        // User's proportional share of pendingInactive pool
+        return (pendingInactive * userPooledG) / totalPooled;
+    }
+
+    /**
+     * @dev Process matured unlocks for a specific user
+     * In Aptos model, this is a no-op as processing happens automatically at epoch
+     */
+    function processUserUnlocks(
+        address user
+    ) external {
+        // In Aptos model, unlock processing happens automatically during epoch transition
+        // This function is kept for interface compatibility but does nothing
+    }
+
     /// @inheritdoc IStakeCredit
     function getUnlockRequestStatus() external view returns (bool hasRequest, uint256 requestedAt) {
-        address user = msg.sender;
-        DoubleEndedQueue.Bytes32Deque storage queue = _unlockRequestsQueue[user];
-
-        if (queue.length() > 0) {
-            hasRequest = true;
-            // Return the oldest unlock request time
-            bytes32 requestHash = queue.front();
-            UnlockRequest memory request = _unlockRequests[requestHash];
-            requestedAt = request.unlockTime - _getUnbondPeriod();
-        }
-
+        // In Aptos model, check if user has any pendingInactive stake
+        uint256 userPooledG = getPooledGByDelegator(msg.sender);
+        if (userPooledG == 0) return (false, 0);
+        
+        uint256 totalPooled = getTotalPooledG();
+        if (totalPooled == 0) return (false, 0);
+        
+        // Check if user has share of pendingInactive
+        uint256 userPendingInactive = (pendingInactive * userPooledG) / totalPooled;
+        hasRequest = userPendingInactive > 0;
+        
+        // In Aptos model, requestedAt is not applicable (epoch-based)
+        requestedAt = 0;
+        
         return (hasRequest, requestedAt);
     }
 }
