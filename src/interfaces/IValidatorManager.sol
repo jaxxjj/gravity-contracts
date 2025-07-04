@@ -328,4 +328,10 @@ interface IValidatorManager is IReconfigurableModule {
     function getOperator(
         address validator
     ) external view returns (address);
+
+    /**
+     * @dev Get all active validators' complete information for epoch transition
+     * @return validatorInfos Array of all active validators' information
+     */
+    function getAllActiveValidatorInfos() external view returns (ValidatorInfo[] memory validatorInfos);
 }
