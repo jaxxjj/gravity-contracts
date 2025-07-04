@@ -8,6 +8,7 @@ import "@src/interfaces/IParamSubscriber.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/ITimestamp.sol";
+import "@src/interfaces/IValidatorManager.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 
 /**
@@ -81,7 +82,11 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
         // Notify all system contracts using fixed addresses
         _notifySystemModules();
 
-        // Emit event
+        IValidatorManager.ValidatorInfo[] memory validatorInfos = 
+            IValidatorManager(VALIDATOR_MANAGER_ADDR).getAllActiveValidatorInfos();
+
+        emit AllValidatorsUpdated(newEpoch, validatorInfos);
+
         emit EpochTransitioned(newEpoch, transitionTime);
     }
 
