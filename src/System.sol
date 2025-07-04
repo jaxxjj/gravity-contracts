@@ -19,7 +19,6 @@ contract System {
     address internal constant TIMESTAMP_ADDR = 0x0000000000000000000000000000000000002004;
     address internal constant JWK_MANAGER_ADDR = 0x0000000000000000000000000000000000002005;
     address internal constant KEYLESS_ACCOUNT_ADDR = 0x000000000000000000000000000000000000200A;
-    address internal constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address internal constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
     address internal constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
     address internal constant STAKE_CREDIT_ADDR = 0x0000000000000000000000000000000000002003;
@@ -61,11 +60,6 @@ contract System {
 
     modifier onlyEpochManager() {
         if (msg.sender != EPOCH_MANAGER_ADDR) revert OnlySystemContract(EPOCH_MANAGER_ADDR);
-        _;
-    }
-
-    modifier onlySlash() {
-        if (msg.sender != SLASH_CONTRACT_ADDR) revert OnlySystemContract(SLASH_CONTRACT_ADDR);
         _;
     }
 
