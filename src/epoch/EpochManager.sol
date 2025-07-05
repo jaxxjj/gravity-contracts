@@ -85,9 +85,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
         IValidatorManager.ValidatorInfo[] memory validatorInfos = 
             IValidatorManager(VALIDATOR_MANAGER_ADDR).getAllActiveValidatorInfos();
 
-        emit AllValidatorsUpdated(newEpoch, validatorInfos);
-
-        emit EpochTransitioned(newEpoch, transitionTime);
+        emit NewEpoch(newEpoch, transitionTime, validatorInfos);
     }
 
     /// @inheritdoc IEpochManager

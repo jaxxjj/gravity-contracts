@@ -65,7 +65,7 @@ function triggerEpochTransition() external onlyAuthorizedCallers
 
 3. **通知系统模块**：调用 `_notifySystemModules()` 函数通知所有系统合约
 
-4. **触发事件**：发出 `EpochTransitioned` 事件，记录新的 Epoch 编号和转换时间
+4. **触发事件**：发出 `NewEpoch` 事件，记录新的 Epoch 编号和转换时间和active validators
 
 #### 步骤 2：系统模块通知
 
@@ -103,7 +103,7 @@ function _notifySystemModules(uint256 newEpoch, uint256 transitionTime) internal
 3. 验证者集合可能发生变化
 4. 奖励分配完成
 5. 治理决策执行
-6. 发出 `EpochTransitioned` 事件
+6. 发出 `NewEpoch` 事件
 
 ## Epoch 参数配置 ⚙️
 
