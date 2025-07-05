@@ -133,7 +133,7 @@ contract EpochManagerTest is Test, TestConstants {
 
         // Act & Assert
         vm.expectEmit(true, false, false, true);
-        emit IEpochManager.EpochTransitioned(1, newTime);
+        emit IEpochManager.NewEpoch(1, newTime, new IValidatorManager.ValidatorInfo[](0));
 
         epochManager.triggerEpochTransition();
 
